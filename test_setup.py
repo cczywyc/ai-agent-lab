@@ -1,16 +1,23 @@
+"""
+环境验证脚本 — 确认千问 API 连通性
+运行: python test_setup.py
+"""
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
+
 load_dotenv()
 
-# --- 测试 Anthropic api ---
-import anthropic
-client_ant = anthropic.Anthropic(
-    api_key=os.getenv("ANTHROPIC_API_KEY"),
-    base_url=os.getenv("ANTHROPIC_BASE_URL")
+client = OpenAI(
+    api_key=os.getenv("DASHSCOPE_API_KEY"),
+    base_url=os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 )
-resp = client_ant.messages.create(
-    model="claude-sonnet-4-6",
-    max_tokens=50,
-    messages=[{"role": "user", "content": "Say hello in one sentence."}]
+
+resp = client.chat.completions.create(
+    model="qwen3-max-2026-01-23",
+    messages=[{"role": "user", "content": "用一句话跟我打个招呼"}],
+    max_tokens=50
 )
-print("[Anthropic]", resp.content[0].text)
+
+print("[Qwen]", resp.choices[0].message.content)
+print("\n✅ 千问 API 连通正常")
