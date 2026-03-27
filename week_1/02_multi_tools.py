@@ -40,7 +40,7 @@ tools = [
                 "properties": {
                     "city": {
                         "type": "string",
-                        "description": "City name, e.g. 'Beijing', 'Tokyo'"
+                        "description": "The city name in English, e.g. 'Beijing', 'Shanghai'. Always use English names, not Chinese."
                     }
                 },
                 "required": ["city"]
