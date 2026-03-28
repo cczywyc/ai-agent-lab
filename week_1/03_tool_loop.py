@@ -40,7 +40,7 @@ tools = [
                 "properties": {
                     "city": {
                         "type": "string",
-                        "description": "City name, e.g. 'Beijing'"
+                        "description": "The city name in English, e.g. 'Beijing', 'Shanghai'. Always use English names, not Chinese."
                     }
                 },
                 "required": ["city"]
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     run_agent("东京现在几点了？气温多少度？")
 
     # 测试 3：不需要工具
-    run_agent("给我讲个笑话")
+    run_agent("给我写首情诗")
 
     # 测试 4：多城市查询
     run_agent("帮我查一下纽约的天气和时间")
