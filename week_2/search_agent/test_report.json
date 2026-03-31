@@ -1,0 +1,93 @@
+[
+  {
+    "index": 1,
+    "query": "2024年诺贝尔物理学奖颁给了谁？",
+    "expected": "搜索 → 直接从 snippet 总结",
+    "needs_tools": true,
+    "actually_used_tools": false,
+    "tool_match": false,
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "errors": 0,
+    "has_answer": true,
+    "answer_length": 585
+  },
+  {
+    "index": 2,
+    "query": "MCP 协议是什么？它在 AI Agent 中有什么作用？",
+    "expected": "搜索 → 可能需要 fetch_webpage 获取详细内容",
+    "needs_tools": true,
+    "actually_used_tools": true,
+    "tool_match": true,
+    "total_turns": 2,
+    "total_tool_calls": 1,
+    "errors": 0,
+    "has_answer": true,
+    "answer_length": 1045
+  },
+  {
+    "index": 3,
+    "query": "对比一下 LangGraph 和 CrewAI 的主要区别",
+    "expected": "搜索 → 可能多次搜索或抓取不同页面",
+    "needs_tools": true,
+    "actually_used_tools": true,
+    "tool_match": true,
+    "total_turns": 5,
+    "total_tool_calls": 5,
+    "errors": 1,
+    "has_answer": false,
+    "answer_length": 0
+  },
+  {
+    "index": 4,
+    "query": "What are the new features in Qwen3?",
+    "expected": "英文搜索 → 英文回答",
+    "needs_tools": true,
+    "actually_used_tools": true,
+    "tool_match": true,
+    "total_turns": 2,
+    "total_tool_calls": 1,
+    "errors": 0,
+    "has_answer": true,
+    "answer_length": 1284
+  },
+  {
+    "index": 5,
+    "query": "用中文解释一下什么是 RAG（检索增强生成）",
+    "expected": "可能英文搜索 → 中文回答",
+    "needs_tools": true,
+    "actually_used_tools": false,
+    "tool_match": false,
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "errors": 0,
+    "has_answer": true,
+    "answer_length": 1083
+  },
+  {
+    "index": 6,
+    "query": "帮我写一首关于春天的五言绝句",
+    "expected": "不调用工具 → 直接回答",
+    "needs_tools": false,
+    "actually_used_tools": false,
+    "tool_match": true,
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "errors": 0,
+    "has_answer": true,
+    "answer_length": 547
+  },
+  {
+    "index": 7,
+    "query": "xyzabc123 这个完全不存在的东西是什么？",
+    "expected": "搜索无结果或无意义结果 → 诚实告知",
+    "needs_tools": true,
+    "actually_used_tools": false,
+    "tool_match": false,
+    "total_turns": 1,
+    "total_tool_calls": 0,
+    "errors": 0,
+    "has_answer": true,
+    "answer_length": 687
+  }
+]

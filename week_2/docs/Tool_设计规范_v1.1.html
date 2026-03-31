@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Tool 设计规范 v1.1</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F1117;
+    --bg-card: #181B24;
+    --bg-code: #1E2230;
+    --bg-highlight: #232838;
+    --border: #2A2F3E;
+    --border-accent: #3B4259;
+    --text: #D4D7E1;
+    --text-dim: #8B90A0;
+    --text-bright: #F0F1F5;
+    --accent-blue: #5B9CF5;
+    --accent-cyan: #4DD9C0;
+    --accent-orange: #F0A55B;
+    --accent-red: #F07070;
+    --accent-purple: #A78BFA;
+    --accent-green: #6BCB77;
+    --accent-yellow: #F5D76E;
+    --gradient-1: linear-gradient(135deg, #5B9CF5 0%, #4DD9C0 100%);
+    --gradient-2: linear-gradient(135deg, #A78BFA 0%, #5B9CF5 100%);
+    --gradient-3: linear-gradient(135deg, #F0A55B 0%, #F07070 100%);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ========== HERO ========== */
+  .hero {
+    padding: 80px 0 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -120px; right: -120px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(91,156,245,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+    border: 1px solid rgba(77,217,192,0.3);
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--text-bright);
+    line-height: 1.2;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+  .hero h1 span {
+    background: var(--gradient-1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-subtitle {
+    font-size: 17px;
+    color: var(--text-dim);
+    max-width: 640px;
+    line-height: 1.7;
+  }
+  .hero-meta {
+    margin-top: 28px;
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* ========== TOC ========== */
+  .toc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 56px;
+  }
+  .toc-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent-blue);
+    margin-bottom: 16px;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 32px;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+  }
+  .toc-item:hover { color: var(--accent-cyan); }
+  .toc-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    background: var(--bg-highlight);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    flex-shrink: 0;
+  }
+
+  /* ========== SECTIONS ========== */
+  .section {
+    margin-bottom: 64px;
+    scroll-margin-top: 32px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .section-num.blue { background: rgba(91,156,245,0.15); color: var(--accent-blue); }
+  .section-num.cyan { background: rgba(77,217,192,0.15); color: var(--accent-cyan); }
+  .section-num.orange { background: rgba(240,165,91,0.15); color: var(--accent-orange); }
+  .section-num.red { background: rgba(240,112,112,0.15); color: var(--accent-red); }
+  .section-num.purple { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+  .section-num.green { background: rgba(107,203,119,0.15); color: var(--accent-green); }
+
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: -0.3px;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin: 32px 0 14px;
+  }
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    margin: 24px 0 10px;
+  }
+  p { margin-bottom: 14px; }
+
+  /* ========== CARDS ========== */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 20px 0 28px;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border-accent); }
+  .card-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    font-size: 18px;
+  }
+  .card-icon.blue { background: rgba(91,156,245,0.15); }
+  .card-icon.cyan { background: rgba(77,217,192,0.15); }
+  .card-icon.orange { background: rgba(240,165,91,0.15); }
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+  }
+  .card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ========== CODE ========== */
+  .code-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 16px 0 24px;
+    overflow: hidden;
+  }
+  .code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .code-lang {
+    color: var(--accent-cyan);
+    font-weight: 500;
+  }
+  pre {
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .hl-key { color: var(--accent-purple); }
+  .hl-str { color: var(--accent-green); }
+  .hl-comment { color: var(--text-dim); font-style: italic; }
+  .hl-val { color: var(--accent-orange); }
+  .hl-type { color: var(--accent-cyan); }
+
+  /* ========== TABLE ========== */
+  .table-wrap {
+    margin: 16px 0 28px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--bg-highlight);
+    color: var(--text-bright);
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-accent);
+  }
+  thead th:first-child { border-radius: 8px 0 0 0; }
+  thead th:last-child { border-radius: 0 8px 0 0; }
+  tbody td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:hover { background: rgba(255,255,255,0.015); }
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    background: var(--bg-highlight);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--accent-cyan);
+  }
+
+  /* ========== COMPARE ========== */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0 28px;
+  }
+  .compare-bad, .compare-good {
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid;
+  }
+  .compare-bad {
+    background: rgba(240,112,112,0.04);
+    border-color: rgba(240,112,112,0.2);
+  }
+  .compare-good {
+    background: rgba(107,203,119,0.04);
+    border-color: rgba(107,203,119,0.2);
+  }
+  .compare-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .compare-bad .compare-label { color: var(--accent-red); }
+  .compare-good .compare-label { color: var(--accent-green); }
+
+  /* ========== DIAGRAM ========== */
+  .diagram-wrap {
+    margin: 24px 0 32px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+  }
+  .diagram-caption {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 16px;
+    font-style: italic;
+  }
+
+  /* ========== CALLOUT ========== */
+  .callout {
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 16px 0 24px;
+    display: flex;
+    gap: 14px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .callout-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .callout.info {
+    background: rgba(91,156,245,0.08);
+    border-left: 3px solid var(--accent-blue);
+  }
+  .callout.warn {
+    background: rgba(240,165,91,0.08);
+    border-left: 3px solid var(--accent-orange);
+  }
+  .callout.danger {
+    background: rgba(240,112,112,0.08);
+    border-left: 3px solid var(--accent-red);
+  }
+  .callout.tip {
+    background: rgba(107,203,119,0.08);
+    border-left: 3px solid var(--accent-green);
+  }
+  .callout strong { color: var(--text-bright); }
+
+  /* ========== CHECKLIST ========== */
+  .checklist {
+    list-style: none;
+    margin: 16px 0 24px;
+  }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 14px;
+  }
+  .checklist li::before {
+    content: '☐';
+    color: var(--accent-blue);
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ========== FLOW STEPS ========== */
+  .flow-steps {
+    display: flex;
+    gap: 12px;
+    margin: 20px 0 28px;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    flex: 1;
+    min-width: 140px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 16px;
+    text-align: center;
+    position: relative;
+  }
+  .flow-step:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    right: -18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-size: 18px;
+    z-index: 1;
+  }
+  .flow-step-num {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .flow-step-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-bright);
+  }
+
+  /* ========== TAG ========== */
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+  }
+  .tag.data { background: rgba(91,156,245,0.15); color: var(--accent-blue); }
+  .tag.action { background: rgba(240,165,91,0.15); color: var(--accent-orange); }
+  .tag.orch { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+  .tag.required { background: rgba(240,112,112,0.15); color: var(--accent-red); }
+  .tag.optional { background: rgba(107,203,119,0.15); color: var(--accent-green); }
+
+  /* ========== SEPARATOR ========== */
+  .sep {
+    border: none;
+    height: 1px;
+    background: var(--border);
+    margin: 48px 0;
+  }
+
+  /* ========== FOOTER ========== */
+  .footer {
+    padding: 40px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 64px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  /* ========== Decision Tree ========== */
+  .decision-tree {
+    margin: 20px 0 28px;
+  }
+  .dt-node {
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 2px;
+  }
+  .dt-connector {
+    width: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .dt-line {
+    width: 2px;
+    flex: 1;
+    background: var(--border-accent);
+  }
+  .dt-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dt-content {
+    flex: 1;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .dt-question {
+    font-weight: 600;
+    color: var(--text-bright);
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .dt-answer {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .dt-answer .tag { margin-right: 4px; }
+
+  /* ========== V1.1 UPDATE BLOCK ========== */
+  .v11-update {
+    margin: 28px 0;
+    border: 1px solid rgba(77,217,192,0.25);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .v11-update-header {
+    background: rgba(77,217,192,0.08);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(77,217,192,0.15);
+  }
+  .v11-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #0F1117;
+    background: var(--accent-cyan);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .v11-update-header span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-cyan);
+  }
+  .v11-update-body {
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .v11-update-body p { margin-bottom: 12px; }
+  .v11-update-body strong { color: var(--text-bright); }
+  .case-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 4px;
+  }
+  .case-tag.pass { background: rgba(107,203,119,0.15); color: var(--accent-green); }
+  .case-tag.fail { background: rgba(240,112,112,0.15); color: var(--accent-red); }
+  .case-tag.warn { background: rgba(240,165,91,0.15); color: var(--accent-orange); }
+
+  @media (max-width: 768px) {
+    .card-grid { grid-template-columns: 1fr; }
+    .compare { grid-template-columns: 1fr; }
+    .toc-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 30px; }
+    .flow-steps { flex-direction: column; }
+    .flow-step::after { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- ==================== HERO ==================== -->
+<div class="hero">
+  <div class="hero-badge">AI Agent Engineering</div>
+  <h1>Tool 设计规范 <span>v1.1</span></h1>
+  <p class="hero-subtitle">
+    一份面向 AI Agent 开发工程师的工具设计指南。涵盖工具分类、命名规范、参数与返回值设计、失败处理策略，以及工具数量控制原则。基于 Anthropic 与 OpenAI 的最新工程实践提炼，并结合"网页搜索 + 总结" Agent 的实战经验更新。
+  </p>
+  <div class="hero-meta">
+    <span>📅 2026-03-30</span>
+    <span>📖 Week 2 产出物</span>
+    <span>🔖 v1.1 — 含实战更新</span>
+  </div>
+</div>
+
+<!-- ==================== TOC ==================== -->
+<div class="toc">
+  <div class="toc-title">目录</div>
+  <div class="toc-grid">
+    <a class="toc-item" href="#s1"><span class="toc-num">1</span>工具分类标准</a>
+    <a class="toc-item" href="#s4"><span class="toc-num">4</span>返回值设计规范</a>
+    <a class="toc-item" href="#s2"><span class="toc-num">2</span>命名规范</a>
+    <a class="toc-item" href="#s5"><span class="toc-num">5</span>失败处理清单</a>
+    <a class="toc-item" href="#s3"><span class="toc-num">3</span>参数设计规范</a>
+    <a class="toc-item" href="#s6"><span class="toc-num">6</span>工具数量控制原则</a>
+    <a class="toc-item" href="#s7"><span class="toc-num">7</span>实战案例：搜索 Agent 评测分析</a>
+    <a class="toc-item" href="#appendix"><span class="toc-num">附</span>工具上线自检清单</a>
+  </div>
+</div>
+
+<!-- ==================== SECTION 1 ==================== -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <span class="section-num blue">1</span>
+    <h2>工具分类标准</h2>
+  </div>
+
+  <p>Agent 使用的工具可以分为三类。正确的分类决定了工具的安全等级、审批流程和错误处理策略。分类的核心判断标准是：<strong>这个工具是"读"还是"写"，以及它操作的是数据还是流程。</strong></p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon blue">🔍</div>
+      <div class="card-title">Data Tool</div>
+      <div class="card-desc">只读操作。从外部系统获取上下文信息，不产生副作用。如：数据库查询、文件读取、API 查询、搜索引擎调用。</div>
+    </div>
+    <div class="card">
+      <div class="card-icon orange">⚡</div>
+      <div class="card-title">Action Tool</div>
+      <div class="card-desc">写操作或有副作用。改变外部系统状态。如：发送邮件、创建工单、更新数据库记录、调用支付接口。</div>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:rgba(167,139,250,0.15);">🔀</div>
+      <div class="card-title">Orchestration Tool</div>
+      <div class="card-desc">流程控制。将任务委托给其他 Agent 或子系统。如：handoff、子 Agent 调用、工作流触发。</div>
+    </div>
+  </div>
+
+  <!-- Classification Diagram -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 860 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+      <!-- Background grid dots -->
+      <defs>
+        <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="0.5" fill="#2A2F3E"/>
+        </pattern>
+      </defs>
+      <rect width="860" height="420" fill="url(#dots)" rx="8"/>
+
+      <!-- Center node -->
+      <rect x="330" y="30" width="200" height="52" rx="12" fill="#232838" stroke="#3B4259"/>
+      <text x="430" y="62" text-anchor="middle" fill="#F0F1F5" font-size="15" font-weight="600" font-family="IBM Plex Sans, sans-serif">Agent 收到用户请求</text>
+
+      <!-- Arrow down -->
+      <line x1="430" y1="82" x2="430" y2="115" stroke="#3B4259" stroke-width="2"/>
+      <polygon points="425,115 435,115 430,123" fill="#3B4259"/>
+
+      <!-- Decision diamond -->
+      <polygon points="430,130 530,175 430,220 330,175" fill="#232838" stroke="#5B9CF5" stroke-width="1.5"/>
+      <text x="430" y="172" text-anchor="middle" fill="#D4D7E1" font-size="12" font-weight="500" font-family="IBM Plex Sans, sans-serif">需要什么能力？</text>
+      <text x="430" y="187" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">模型自动判断</text>
+
+      <!-- Left branch - Data Tool -->
+      <line x1="330" y1="175" x2="160" y2="175" stroke="#5B9CF5" stroke-width="2"/>
+      <line x1="160" y1="175" x2="160" y2="260" stroke="#5B9CF5" stroke-width="2"/>
+      <polygon points="155,260 165,260 160,268" fill="#5B9CF5"/>
+      <text x="240" y="167" fill="#5B9CF5" font-size="11" font-weight="500" font-family="IBM Plex Sans, sans-serif">获取信息</text>
+
+      <rect x="60" y="272" width="200" height="130" rx="12" fill="rgba(91,156,245,0.08)" stroke="#5B9CF5" stroke-width="1.5"/>
+      <text x="160" y="298" text-anchor="middle" fill="#5B9CF5" font-size="14" font-weight="600" font-family="IBM Plex Sans, sans-serif">🔍 Data Tool</text>
+      <text x="160" y="320" text-anchor="middle" fill="#8B90A0" font-size="12" font-family="IBM Plex Sans, sans-serif">只读 · 无副作用</text>
+      <line x1="85" y1="334" x2="235" y2="334" stroke="#2A2F3E"/>
+      <text x="85" y="355" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 数据库查询</text>
+      <text x="85" y="373" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• API 数据拉取</text>
+      <text x="85" y="391" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 文件/文档读取</text>
+
+      <!-- Center branch - Action Tool -->
+      <line x1="430" y1="220" x2="430" y2="268" stroke="#F0A55B" stroke-width="2"/>
+      <polygon points="425,268 435,268 430,276" fill="#F0A55B"/>
+      <text x="445" y="248" fill="#F0A55B" font-size="11" font-weight="500" font-family="IBM Plex Sans, sans-serif">执行动作</text>
+
+      <rect x="330" y="280" width="200" height="130" rx="12" fill="rgba(240,165,91,0.08)" stroke="#F0A55B" stroke-width="1.5"/>
+      <text x="430" y="306" text-anchor="middle" fill="#F0A55B" font-size="14" font-weight="600" font-family="IBM Plex Sans, sans-serif">⚡ Action Tool</text>
+      <text x="430" y="328" text-anchor="middle" fill="#8B90A0" font-size="12" font-family="IBM Plex Sans, sans-serif">写操作 · 有副作用</text>
+      <line x1="355" y1="342" x2="505" y2="342" stroke="#2A2F3E"/>
+      <text x="355" y="363" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 发送邮件/消息</text>
+      <text x="355" y="381" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 创建/更新记录</text>
+      <text x="355" y="399" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 支付/删除操作</text>
+
+      <!-- Right branch - Orchestration Tool -->
+      <line x1="530" y1="175" x2="700" y2="175" stroke="#A78BFA" stroke-width="2"/>
+      <line x1="700" y1="175" x2="700" y2="260" stroke="#A78BFA" stroke-width="2"/>
+      <polygon points="695,260 705,260 700,268" fill="#A78BFA"/>
+      <text x="620" y="167" fill="#A78BFA" font-size="11" font-weight="500" font-family="IBM Plex Sans, sans-serif">委托协调</text>
+
+      <rect x="600" y="272" width="200" height="130" rx="12" fill="rgba(167,139,250,0.08)" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="700" y="298" text-anchor="middle" fill="#A78BFA" font-size="14" font-weight="600" font-family="IBM Plex Sans, sans-serif">🔀 Orchestration</text>
+      <text x="700" y="320" text-anchor="middle" fill="#8B90A0" font-size="12" font-family="IBM Plex Sans, sans-serif">流程控制 · 任务委托</text>
+      <line x1="625" y1="334" x2="775" y2="334" stroke="#2A2F3E"/>
+      <text x="625" y="355" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• Agent 间 Handoff</text>
+      <text x="625" y="373" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 子 Agent 调用</text>
+      <text x="625" y="391" fill="#D4D7E1" font-size="11" font-family="IBM Plex Sans, sans-serif">• 工作流触发</text>
+    </svg>
+    <div class="diagram-caption">图 1：工具三分类决策模型 — Agent 根据用户意图自动选择工具类型</div>
+  </div>
+
+  <h3>分类决定安全等级</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>属性</th><th><span class="tag data">Data Tool</span></th><th><span class="tag action">Action Tool</span></th><th><span class="tag orch">Orchestration</span></th></tr></thead>
+      <tbody>
+        <tr><td>副作用</td><td>无</td><td>有（不可逆可能性高）</td><td>取决于子任务</td></tr>
+        <tr><td>风险等级</td><td>低</td><td>中 ~ 高</td><td>中</td></tr>
+        <tr><td>是否需要确认</td><td>通常不需要</td><td>高危操作需二次确认</td><td>首次 handoff 建议确认</td></tr>
+        <tr><td>重试安全性</td><td>安全</td><td>需幂等设计</td><td>需状态检查</td></tr>
+        <tr><td>超时策略</td><td>短超时 + 快速失败</td><td>合理超时 + 状态回查</td><td>长超时 + 心跳检查</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">💡</span>
+    <div><strong>设计原则：</strong>在给工具定义 MCP Annotations 时，Data Tool 标记为 <code>readOnlyHint: true</code>，Action Tool 标记为 <code>destructiveHint: true</code>（如果涉及删除/修改），Orchestration Tool 标记为 <code>openWorldHint: true</code>（如果涉及外部系统调用）。</div>
+  </div>
+
+  <div class="v11-update">
+    <div class="v11-update-header"><span class="v11-badge">v1.1</span><span>实战经验：分类如何影响 Agent 行为</span></div>
+    <div class="v11-update-body">
+      <p>在搜索 Agent 实战中，<code>web_search</code> 和 <code>fetch_webpage</code> 都是 <strong>Data Tool</strong>（只读、无副作用）。这个分类决定了它们的关键特性：</p>
+      <p><strong>重试安全：</strong>Data Tool 可以放心重试。实测中 <code>fetch_webpage</code> 因 403 失败后模型自动重试了不同 URL，这在 Action Tool 上需要幂等设计才能做到。</p>
+      <p><strong>确认不必要：</strong>Data Tool 不需要人工确认。如果 <code>web_search</code> 也要确认才能执行，Agent 的多轮循环就无法自动运行。</p>
+      <p><strong>未来方向：</strong>如果后续给 Agent 加上"发送搜索结果给用户邮箱"的功能，这就是 Action Tool，需要单独的安全控制（二次确认、权限检查）。分类在设计阶段就要想清楚。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 2 ==================== -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <span class="section-num cyan">2</span>
+    <h2>命名规范</h2>
+  </div>
+
+  <h3>2.1 工具名称（name）规范</h3>
+  <p>工具名称是模型识别工具的第一信号，但信息容量有限。命名的目标是：<strong>让模型在看到名称时就能大致判断工具类别和用途</strong>。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>规则</th><th>说明</th><th>示例</th></tr></thead>
+      <tbody>
+        <tr><td><strong>动词_名词 格式</strong></td><td>始终以动作开头，明确工具做什么</td><td><code>search_documents</code>, <code>send_email</code></td></tr>
+        <tr><td><strong>snake_case 风格</strong></td><td>全小写 + 下划线分隔，跨 API 兼容性最好</td><td><code>get_user_profile</code></td></tr>
+        <tr><td><strong>避免缩写和歧义词</strong></td><td>不用 <code>proc</code>, <code>mgr</code>, <code>util</code> 等</td><td><code>process_refund</code> 而非 <code>proc_ref</code></td></tr>
+        <tr><td><strong>相似工具加前缀</strong></td><td>用命名空间区分同类工具</td><td><code>crm_search_contacts</code> vs <code>kb_search_articles</code></td></tr>
+        <tr><td><strong>长度控制 2-5 个词</strong></td><td>太短则含义不清，太长则噪音大</td><td><code>create_support_ticket</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="compare">
+    <div class="compare-bad">
+      <div class="compare-label">❌ 差的命名</div>
+      <pre style="padding:0;background:transparent;"><code>query</code>
+<code>handle_request</code>
+<code>do_stuff</code>
+<code>notification-send-user</code>
+<code>notification-send-channel</code></pre>
+    </div>
+    <div class="compare-good">
+      <div class="compare-label">✅ 好的命名</div>
+      <pre style="padding:0;background:transparent;"><code>search_knowledge_base</code>
+<code>process_refund_request</code>
+<code>generate_monthly_report</code>
+<code>notify_user_via_email</code>
+<code>notify_channel_via_slack</code></pre>
+    </div>
+  </div>
+
+  <h3>2.2 工具描述（description）规范</h3>
+  <p>Description 是模型决策的<strong>核心依据</strong>。Anthropic 明确指出，工具描述对性能的影响远超其他任何因素。最低要求：每个工具 3-4 句话。</p>
+
+  <h4>描述必须覆盖的 6 个要素</h4>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+      <defs>
+        <pattern id="dots2" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="0.5" fill="#2A2F3E"/>
+        </pattern>
+      </defs>
+      <rect width="860" height="300" fill="url(#dots2)" rx="8"/>
+
+      <!-- Center circle -->
+      <circle cx="430" cy="150" r="52" fill="#232838" stroke="#5B9CF5" stroke-width="2"/>
+      <text x="430" y="144" text-anchor="middle" fill="#5B9CF5" font-size="13" font-weight="600" font-family="IBM Plex Sans, sans-serif">Tool</text>
+      <text x="430" y="162" text-anchor="middle" fill="#5B9CF5" font-size="13" font-weight="600" font-family="IBM Plex Sans, sans-serif">Description</text>
+
+      <!-- Element 1 - What -->
+      <line x1="378" y1="135" x2="165" y2="60" stroke="#4DD9C0" stroke-width="1.5"/>
+      <circle cx="165" cy="60" r="6" fill="#4DD9C0"/>
+      <rect x="55" y="36" width="170" height="48" rx="8" fill="rgba(77,217,192,0.08)" stroke="rgba(77,217,192,0.3)"/>
+      <text x="140" y="55" text-anchor="middle" fill="#4DD9C0" font-size="11" font-weight="600" font-family="IBM Plex Sans, sans-serif">① 做什么</text>
+      <text x="140" y="72" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">工具的核心功能描述</text>
+
+      <!-- Element 2 - When -->
+      <line x1="383" y1="115" x2="310" y2="35" stroke="#5B9CF5" stroke-width="1.5"/>
+      <circle cx="310" cy="35" r="6" fill="#5B9CF5"/>
+      <rect x="260" y="11" width="170" height="48" rx="8" fill="rgba(91,156,245,0.08)" stroke="rgba(91,156,245,0.3)"/>
+      <text x="345" y="30" text-anchor="middle" fill="#5B9CF5" font-size="11" font-weight="600" font-family="IBM Plex Sans, sans-serif">② 何时使用</text>
+      <text x="345" y="47" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">触发场景和前置条件</text>
+
+      <!-- Element 3 - Return -->
+      <line x1="478" y1="120" x2="580" y2="38" stroke="#A78BFA" stroke-width="1.5"/>
+      <circle cx="580" cy="38" r="6" fill="#A78BFA"/>
+      <rect x="505" y="14" width="170" height="48" rx="8" fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.3)"/>
+      <text x="590" y="33" text-anchor="middle" fill="#A78BFA" font-size="11" font-weight="600" font-family="IBM Plex Sans, sans-serif">③ 返回什么</text>
+      <text x="590" y="50" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">输出的字段和格式</text>
+
+      <!-- Element 4 - Not -->
+      <line x1="482" y1="155" x2="710" y2="95" stroke="#F0A55B" stroke-width="1.5"/>
+      <circle cx="710" cy="95" r="6" fill="#F0A55B"/>
+      <rect x="635" y="71" width="170" height="48" rx="8" fill="rgba(240,165,91,0.08)" stroke="rgba(240,165,91,0.3)"/>
+      <text x="720" y="90" text-anchor="middle" fill="#F0A55B" font-size="11" font-weight="600" font-family="IBM Plex Sans, sans-serif">④ 不能做什么</text>
+      <text x="720" y="107" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">局限性和排除范围</text>
+
+      <!-- Element 5 - Params -->
+      <line x1="478" y1="185" x2="680" y2="230" stroke="#F07070" stroke-width="1.5"/>
+      <circle cx="680" cy="230" r="6" fill="#F07070"/>
+      <rect x="605" y="206" width="170" height="48" rx="8" fill="rgba(240,112,112,0.08)" stroke="rgba(240,112,112,0.3)"/>
+      <text x="690" y="225" text-anchor="middle" fill="#F07070" font-size="11" font-weight="600" font-family="IBM Plex Sans, sans-serif">⑤ 参数细节</text>
+      <text x="690" y="242" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">格式要求和示例值</text>
+
+      <!-- Element 6 - Relationship -->
+      <line x1="393" y1="190" x2="210" y2="250" stroke="#F5D76E" stroke-width="1.5"/>
+      <circle cx="210" cy="250" r="6" fill="#F5D76E"/>
+      <rect x="80" y="226" width="195" height="48" rx="8" fill="rgba(245,215,110,0.08)" stroke="rgba(245,215,110,0.3)"/>
+      <text x="177" y="245" text-anchor="middle" fill="#F5D76E" font-size="11" font-weight="600" font-family="IBM Plex Sans, sans-serif">⑥ 与其他工具的关系</text>
+      <text x="177" y="262" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">区分相似工具/调用顺序</text>
+    </svg>
+    <div class="diagram-caption">图 2：Description 六要素模型 — 每个工具描述至少覆盖其中 4 项</div>
+  </div>
+
+  <h4>完整描述示例</h4>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">JSON</span><span>好的工具定义</span></div>
+<pre>{
+  <span class="hl-key">"name"</span>: <span class="hl-str">"search_customer_records"</span>,
+  <span class="hl-key">"description"</span>: <span class="hl-str">"Search for customer records in the CRM database by name,
+    email, or customer ID. Use this when the user asks about a
+    specific customer's information, order history, or account
+    status. Returns up to 10 matching records with fields: name,
+    email, phone, account_status, last_order_date. Does NOT return
+    payment details or sensitive financial data — use
+    get_payment_info for that. The search is fuzzy-matched on
+    name and exact-matched on email and customer_id."</span>
+}</pre>
+  </div>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠️</span>
+    <div><strong>Anthropic 的发现：</strong>命名空间（namespacing）的选择对工具调用评测有非平凡的影响，而且效果因 LLM 不同而异。不要假设某种命名方案一定更好，应该基于你自己的评测结果来决定。</div>
+  </div>
+
+  <div class="v11-update">
+    <div class="v11-update-header"><span class="v11-badge">v1.1</span><span>实战经验：Description 中最影响模型决策的信息</span></div>
+    <div class="v11-update-body">
+      <p>实测搜索 Agent 的 7 个用例后发现，description 中以下三类信息对模型行为影响最大：</p>
+      <p><strong>1. "不能做什么" 比 "能做什么" 更关键。</strong><code>web_search</code> 的 description 里写了 "Does NOT fetch full content — use fetch_webpage for that"，这句话有效地引导模型在需要详细内容时选择 <code>fetch_webpage</code> 而不是反复搜索。如果删掉这句，模型在需要深入内容时会困惑。</p>
+      <p><strong>2. 工具之间的调用顺序建议。</strong><code>fetch_webpage</code> 的 description 里写 "Use this AFTER web_search when you need full article content"，"AFTER" 这个词明确了两个工具的先后关系。没有这个提示，模型可能直接调用 fetch_webpage 但不知道 URL 从哪来。</p>
+      <p><strong>3. 失败恢复建议。</strong>"If this tool fails, try a different URL from the search results" 这句话让模型在遇到 403 时知道应该换 URL 重试，而不是放弃或重复同一个 URL。实测 Case 3（LangGraph vs CrewAI）中模型确实按照这个建议尝试了不同 URL（虽然都是 403）。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 3 ==================== -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <span class="section-num orange">3</span>
+    <h2>参数设计规范</h2>
+  </div>
+
+  <h3>3.1 核心原则：消除歧义</h3>
+  <p>Anthropic 反复强调一个原则：<strong>把人类开发者可能隐含知道的上下文全部显式化。</strong>模型不像人类——它没有"常识背景"来推断参数的含义，所有信息必须写在 schema 里。</p>
+
+  <div class="compare">
+    <div class="compare-bad">
+      <div class="compare-label">❌ 有歧义的参数</div>
+<pre style="padding:0;background:transparent;">{
+  <span class="hl-key">"user"</span>: <span class="hl-str">"string"</span>,
+  <span class="hl-key">"date"</span>: <span class="hl-str">"string"</span>,
+  <span class="hl-key">"type"</span>: <span class="hl-str">"string"</span>,
+  <span class="hl-key">"status"</span>: <span class="hl-str">"number"</span>
+}</pre>
+    </div>
+    <div class="compare-good">
+      <div class="compare-label">✅ 无歧义的参数</div>
+<pre style="padding:0;background:transparent;">{
+  <span class="hl-key">"user_id"</span>: <span class="hl-str">"string (UUID)"</span>,
+  <span class="hl-key">"created_after"</span>: <span class="hl-str">"string (ISO 8601)"</span>,
+  <span class="hl-key">"ticket_type"</span>: <span class="hl-str">"enum: bug|feature|support"</span>,
+  <span class="hl-key">"priority_level"</span>: <span class="hl-str">"integer (1-5)"</span>
+}</pre>
+    </div>
+  </div>
+
+  <h3>3.2 参数设计清单</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>规则</th><th>做法</th><th>原因</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>命名无歧义</strong></td>
+          <td>用 <code>user_id</code> 而非 <code>user</code>，用 <code>created_after</code> 而非 <code>date</code></td>
+          <td>模型无法推断 "user" 到底指 ID、名称还是邮箱</td>
+        </tr>
+        <tr>
+          <td><strong>description 必填</strong></td>
+          <td>每个参数都有清晰的 description，包含格式说明和示例值</td>
+          <td>schema 的 type 只告诉模型"是字符串"，不告诉"什么样的字符串"</td>
+        </tr>
+        <tr>
+          <td><strong>严格区分 required/optional</strong></td>
+          <td>只把真正必要的参数标为 required；可选参数给默认值语义</td>
+          <td>减少模型构造参数时的犹豫和错误</td>
+        </tr>
+        <tr>
+          <td><strong>使用 enum 约束有限值</strong></td>
+          <td>凡是取值范围有限的参数，一律用 enum 而非 string</td>
+          <td>消除模型猜测合法值的需要</td>
+        </tr>
+        <tr>
+          <td><strong>格式约束写在 description 中</strong></td>
+          <td>"ISO 8601 格式, 如 2026-03-25"、"UUID v4 格式"</td>
+          <td>JSON Schema 的 format 字段并非所有模型都遵循</td>
+        </tr>
+        <tr>
+          <td><strong>避免深层嵌套</strong></td>
+          <td>参数结构不超过 2 层嵌套；超过时考虑拆分工具</td>
+          <td>嵌套越深，模型构造出正确结构的概率越低</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>3.3 完整参数定义示例</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">JSON Schema</span><span>工单搜索工具参数定义</span></div>
+<pre>{
+  <span class="hl-key">"type"</span>: <span class="hl-str">"object"</span>,
+  <span class="hl-key">"properties"</span>: {
+    <span class="hl-key">"customer_id"</span>: {
+      <span class="hl-key">"type"</span>: <span class="hl-str">"string"</span>,
+      <span class="hl-key">"description"</span>: <span class="hl-str">"The unique customer identifier in UUID v4 format, e.g. '550e8400-e29b-41d4-a716-446655440000'. Can be found in the customer profile or previous search results."</span>
+    },
+    <span class="hl-key">"status"</span>: {
+      <span class="hl-key">"type"</span>: <span class="hl-str">"string"</span>,
+      <span class="hl-key">"enum"</span>: [<span class="hl-str">"open"</span>, <span class="hl-str">"in_progress"</span>, <span class="hl-str">"resolved"</span>, <span class="hl-str">"closed"</span>],
+      <span class="hl-key">"description"</span>: <span class="hl-str">"Filter tickets by current status. Omit to return all statuses."</span>
+    },
+    <span class="hl-key">"created_after"</span>: {
+      <span class="hl-key">"type"</span>: <span class="hl-str">"string"</span>,
+      <span class="hl-key">"description"</span>: <span class="hl-str">"Only return tickets created after this date. ISO 8601 format: YYYY-MM-DD. Example: '2026-01-15'."</span>
+    },
+    <span class="hl-key">"max_results"</span>: {
+      <span class="hl-key">"type"</span>: <span class="hl-str">"integer"</span>,
+      <span class="hl-key">"description"</span>: <span class="hl-str">"Maximum number of tickets to return. Range: 1-50. Default: 10 if omitted."</span>
+    }
+  },
+  <span class="hl-key">"required"</span>: [<span class="hl-str">"customer_id"</span>],
+  <span class="hl-key">"additionalProperties"</span>: <span class="hl-val">false</span>
+}</pre>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">📌</span>
+    <div><strong>关于 input_examples（Anthropic 特性）：</strong>对于参数组合复杂的工具，可以额外提供 2-3 个 <code>input_examples</code>，展示常见的调用方式。这通过 in-context learning 来提升准确率，尤其在可选参数的使用逻辑上效果显著。</div>
+  </div>
+
+  <div class="v11-update">
+    <div class="v11-update-header"><span class="v11-badge">v1.1</span><span>实战经验："北京 vs Beijing" 参数问题及解法</span></div>
+    <div class="v11-update-body">
+      <p><strong>问题复现：</strong>用户问"北京天气怎么样"，模型传参 <code>{"city": "北京"}</code>，但工具内部的 mock 数据用英文 key "Beijing"，导致返回 "No weather data for '北京'"。</p>
+      <p><strong>根因：</strong>参数 description 只写了 <code>"city name, e.g. 'Beijing'"</code>，没有显式约束语言。模型用中文填参数是合理行为——因为用户就是用中文提问的。</p>
+      <p><strong>双重保障解法：</strong></p>
+      <p>① <strong>description 层面引导</strong>：改为 <code>"City name in English, e.g. 'Beijing', 'Shanghai'. Always use English names."</code></p>
+      <p>② <strong>工具内部做映射兜底</strong>：在工具函数里加 <code>city_mapping = {"北京": "Beijing", "上海": "Shanghai"}</code>，先尝试映射再查询。</p>
+      <p><strong>原则总结：</strong>永远不要假设模型会完美遵守 description 的要求。<strong>Description 负责引导"通常情况"，工具内部负责兜底"异常情况"。</strong>这两层同时存在，才能保证稳定性。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 4 ==================== -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <span class="section-num red">4</span>
+    <h2>返回值设计规范</h2>
+  </div>
+
+  <h3>4.1 核心原则：高信号、低噪音</h3>
+  <p>Anthropic 的官方指南明确说：<strong>工具返回值应该只包含高信号量信息，使用语义化标识符，只包含模型推理下一步所需的字段。</strong> 膨胀的返回值浪费上下文窗口，让模型更难提取关键信息。</p>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-num">原则 1</div>
+      <div class="flow-step-label">只返回必要字段</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">原则 2</div>
+      <div class="flow-step-label">语义化标识符</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">原则 3</div>
+      <div class="flow-step-label">人类可读格式</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">原则 4</div>
+      <div class="flow-step-label">分页和截断</div>
+    </div>
+  </div>
+
+  <h3>4.2 返回值对比</h3>
+  <div class="compare">
+    <div class="compare-bad">
+      <div class="compare-label">❌ 差的返回值 — 39 个字段，800+ tokens</div>
+<pre style="padding:0;background:transparent;font-size:11px;">{
+  "id": "a1b2c3d4e5f6",
+  "internal_ref": "REF-XJ-2026-0892",
+  "created_at": "2026-03-24T10:32:11.342Z",
+  "updated_at": "2026-03-24T10:32:11.342Z",
+  "created_by_uid": "usr_8827af",
+  "assigned_to_uid": "usr_2910cd",
+  "org_id": "org_38827",
+  "team_id": "team_192",
+  "queue_id": "q_default_l1",
+  "sla_policy_id": "sla_standard",
+  "priority_score": 0.72,
+  "ml_classification_id": "cls_8829",
+  "... 还有 27 个字段 ..."
+}</pre>
+    </div>
+    <div class="compare-good">
+      <div class="compare-label">✅ 好的返回值 — 7 个字段，~150 tokens</div>
+<pre style="padding:0;background:transparent;font-size:11px;">{
+  "ticket_id": "TICKET-2026-0892",
+  "customer_name": "李明",
+  "subject": "无法登录账户",
+  "status": "open",
+  "priority": "high",
+  "created": "2026-03-24",
+  "assigned_to": "张工程师"
+}</pre>
+    </div>
+  </div>
+
+  <h3>4.3 返回值设计决策表</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>设计决策</th><th>规范</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><strong>ID 格式</strong></td><td>使用语义化 ID，如 <code>TICKET-2026-0892</code></td><td>模型和人类都能理解；避免 <code>a1b2c3d4</code> 这种内部哈希</td></tr>
+        <tr><td><strong>时间格式</strong></td><td>返回 <code>YYYY-MM-DD</code> 或自然语言 <code>"3 天前"</code></td><td>精确到毫秒的 ISO 时间戳对模型无意义</td></tr>
+        <tr><td><strong>关联实体</strong></td><td>返回名称而非纯 ID：<code>"assigned_to": "张工程师"</code></td><td>模型不应再做一次查询才能获取可读信息</td></tr>
+        <tr><td><strong>列表结果</strong></td><td>返回 top-N 并告知总数：<code>"showing 5 of 128 results"</code></td><td>模型需要知道是否要翻页或精确化搜索</td></tr>
+        <tr><td><strong>空结果</strong></td><td>返回明确消息而非空数组：<code>"No tickets found matching criteria"</code></td><td>让模型能向用户解释为什么没有结果</td></tr>
+        <tr><td><strong>嵌套深度</strong></td><td>返回值最多 2 层嵌套</td><td>扁平结构更利于模型提取关键信息</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.4 错误返回的标准格式</h3>
+  <p>当工具执行失败时，返回的错误信息应当对模型有用——让模型能决定下一步该做什么。</p>
+
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">JSON</span><span>标准错误返回格式</span></div>
+<pre>{
+  <span class="hl-key">"error"</span>: <span class="hl-val">true</span>,
+  <span class="hl-key">"error_type"</span>: <span class="hl-str">"InputValidationError"</span>,
+  <span class="hl-key">"message"</span>: <span class="hl-str">"Parameter 'customer_id' must be a valid UUID v4 format. Received: 'john_doe'. Try searching by name using the search_customer_by_name tool instead."</span>,
+  <span class="hl-key">"recoverable"</span>: <span class="hl-val">true</span>,
+  <span class="hl-key">"suggestion"</span>: <span class="hl-str">"Use search_customer_by_name to find the customer_id first."</span>
+}</pre>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>error</code></td><td>boolean</td><td>是否是错误响应（必填）</td></tr>
+        <tr><td><code>error_type</code></td><td>string</td><td>错误分类：<code>InputValidationError</code>, <code>NotFoundError</code>, <code>APIFailure</code>, <code>TimeoutError</code>, <code>PermissionDenied</code></td></tr>
+        <tr><td><code>message</code></td><td>string</td><td>人类可读的错误描述，包含具体出错的参数和值</td></tr>
+        <tr><td><code>recoverable</code></td><td>boolean</td><td>模型是否可以通过修改参数或使用其他工具来恢复</td></tr>
+        <tr><td><code>suggestion</code></td><td>string</td><td>可选。给模型的恢复建议</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="v11-update">
+    <div class="v11-update-header"><span class="v11-badge">v1.1</span><span>实战经验：返回值设计的 Token 经济学</span></div>
+    <div class="v11-update-body">
+      <p>实测中，<code>web_search</code> 返回 5 条结果（每条 snippet 截断 200 字），总计约 300-500 tokens。<code>fetch_webpage</code> 返回截断到 3000 字符的正文，约 800-1200 tokens。一次"搜索 + 抓取"的工具结果就会消耗 1000-1700 tokens 的上下文窗口。</p>
+      <p><strong>实测发现 1：snippet 200 字符基本够用。</strong>7 个测试用例中，Case 2（MCP 协议）和 Case 4（Qwen3 特性）仅靠 snippet 就生成了高质量回答，没有触发 fetch_webpage。说明精简的返回值反而帮助模型更快做出判断。</p>
+      <p><strong>实测发现 2：fetch_webpage 的 truncated 字段很重要。</strong>当返回 <code>"truncated": true</code> 时，模型知道信息可能不完整，会在回答中加上"根据部分内容..."的措辞。这比返回完整但超长的内容更有用——模型处理 3000 字符比处理 30000 字符更准确。</p>
+      <p><strong>实测发现 3：空结果的 suggestion 字段被模型利用了。</strong>当搜索返回空结果时，<code>"suggestion": "Try different keywords"</code> 让模型在 Case 3 中自动换了关键词重新搜索，验证了结构化错误返回的价值。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 5 ==================== -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <span class="section-num purple">5</span>
+    <h2>失败处理清单</h2>
+  </div>
+
+  <p>AI Agent 的失败和传统软件不同。最危险的失败看起来像是成功——模型认为任务完成了，但实际输出是错误的。以下是按照你的 roadmap 要求整理的四类核心失败场景及其处理策略。</p>
+
+  <!-- Failure Flow Diagram -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 860 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+      <defs>
+        <pattern id="dots3" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="0.5" fill="#2A2F3E"/>
+        </pattern>
+      </defs>
+      <rect width="860" height="380" fill="url(#dots3)" rx="8"/>
+
+      <!-- Title -->
+      <text x="430" y="30" text-anchor="middle" fill="#F0F1F5" font-size="14" font-weight="600" font-family="IBM Plex Sans, sans-serif">工具调用失败处理流程</text>
+
+      <!-- Step 1: Tool Called -->
+      <rect x="340" y="50" width="180" height="44" rx="10" fill="#232838" stroke="#5B9CF5" stroke-width="1.5"/>
+      <text x="430" y="77" text-anchor="middle" fill="#D4D7E1" font-size="13" font-weight="500" font-family="IBM Plex Sans, sans-serif">Agent 调用工具</text>
+      <line x1="430" y1="94" x2="430" y2="118" stroke="#3B4259" stroke-width="2"/>
+      <polygon points="425,118 435,118 430,126" fill="#3B4259"/>
+
+      <!-- Decision: Pre-validation -->
+      <polygon points="430,132 530,165 430,198 330,165" fill="#232838" stroke="#F0A55B" stroke-width="1.5"/>
+      <text x="430" y="163" text-anchor="middle" fill="#F0A55B" font-size="11" font-weight="500" font-family="IBM Plex Sans, sans-serif">参数校验</text>
+      <text x="430" y="176" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">通过？</text>
+
+      <!-- Fail left: Param error -->
+      <line x1="330" y1="165" x2="100" y2="165" stroke="#F07070" stroke-width="1.5"/>
+      <text x="215" y="157" fill="#F07070" font-size="11" font-family="IBM Plex Sans, sans-serif">不通过</text>
+      <rect x="20" y="140" width="155" height="50" rx="8" fill="rgba(240,112,112,0.08)" stroke="rgba(240,112,112,0.3)"/>
+      <text x="97" y="162" text-anchor="middle" fill="#F07070" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">参数不全/格式错</text>
+      <text x="97" y="179" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">返回错误+修正建议</text>
+
+      <!-- Pass down: Execute -->
+      <line x1="430" y1="198" x2="430" y2="222" stroke="#6BCB77" stroke-width="1.5"/>
+      <text x="445" y="214" fill="#6BCB77" font-size="11" font-family="IBM Plex Sans, sans-serif">通过</text>
+      <rect x="355" y="225" width="150" height="40" rx="8" fill="#232838" stroke="#3B4259"/>
+      <text x="430" y="250" text-anchor="middle" fill="#D4D7E1" font-size="12" font-weight="500" font-family="IBM Plex Sans, sans-serif">执行工具逻辑</text>
+      <line x1="430" y1="265" x2="430" y2="288" stroke="#3B4259" stroke-width="2"/>
+      <polygon points="425,288 435,288 430,296" fill="#3B4259"/>
+
+      <!-- Decision: Execution result -->
+      <polygon points="430,302 530,335 430,368 330,335" fill="#232838" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="430" y="333" text-anchor="middle" fill="#A78BFA" font-size="11" font-weight="500" font-family="IBM Plex Sans, sans-serif">执行结果</text>
+      <text x="430" y="346" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">成功？</text>
+
+      <!-- Fail: Empty result -->
+      <line x1="330" y1="335" x2="100" y2="335" stroke="#F07070" stroke-width="1.5"/>
+      <text x="215" y="327" fill="#F07070" font-size="11" font-family="IBM Plex Sans, sans-serif">结果为空</text>
+      <rect x="20" y="310" width="155" height="50" rx="8" fill="rgba(240,112,112,0.08)" stroke="rgba(240,112,112,0.3)"/>
+      <text x="97" y="330" text-anchor="middle" fill="#F07070" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">无匹配结果</text>
+      <text x="97" y="348" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">明确告知+建议放宽条件</text>
+
+      <!-- Fail right top: Timeout -->
+      <line x1="530" y1="335" x2="710" y2="252" stroke="#F07070" stroke-width="1.5"/>
+      <text x="640" y="280" fill="#F07070" font-size="11" font-family="IBM Plex Sans, sans-serif">超时/API 错误</text>
+      <rect x="660" y="225" width="175" height="55" rx="8" fill="rgba(240,112,112,0.08)" stroke="rgba(240,112,112,0.3)"/>
+      <text x="747" y="247" text-anchor="middle" fill="#F07070" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">外部依赖失败</text>
+      <text x="747" y="265" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">重试(指数退避) → 降级 → 报告</text>
+
+      <!-- Fail right bottom: Format -->
+      <line x1="530" y1="340" x2="710" y2="340" stroke="#F07070" stroke-width="1.5"/>
+      <rect x="660" y="315" width="175" height="55" rx="8" fill="rgba(240,112,112,0.08)" stroke="rgba(240,112,112,0.3)"/>
+      <text x="747" y="337" text-anchor="middle" fill="#F07070" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">返回格式错乱</text>
+      <text x="747" y="355" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">schema 校验 → 修复/丢弃</text>
+
+      <!-- Success -->
+      <line x1="430" y1="368" x2="430" y2="378" stroke="#6BCB77" stroke-width="1.5" stroke-dasharray="4"/>
+      <text x="445" y="378" fill="#6BCB77" font-size="10" font-family="IBM Plex Sans, sans-serif">✓ 返回结果</text>
+    </svg>
+    <div class="diagram-caption">图 3：工具调用失败处理流程 — 每个失败分支都有对应的恢复策略</div>
+  </div>
+
+  <h3>5.1 参数不全/格式错误</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🔴</span>
+    <div><strong>典型表现：</strong>模型传了 <code>"user": "john"</code> 但工具期望 UUID 格式的 <code>user_id</code>；必填参数缺失；日期格式不对。</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>策略</th><th>实现方式</th></tr></thead>
+      <tbody>
+        <tr><td>前置校验（Validation Gate）</td><td>在工具执行前用 JSON Schema 或 Pydantic 校验所有参数。校验失败时不执行，直接返回错误</td></tr>
+        <tr><td>明确的错误信息</td><td>返回"哪个参数出了问题"和"期望的格式"：<code>"customer_id must be UUID v4, got 'john'"</code></td></tr>
+        <tr><td>恢复建议</td><td>在错误信息中指引模型使用替代方案：<code>"Try search_customer_by_name first"</code></td></tr>
+        <tr><td>OpenAI strict mode</td><td>如果使用 OpenAI API，对关键工具开启 <code>strict: true</code> 从底层防止格式错误</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.2 搜索/查询结果为空</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🔴</span>
+    <div><strong>典型表现：</strong>搜索条件太严格导致 0 条结果；ID 不存在；时间范围不对。</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>策略</th><th>实现方式</th></tr></thead>
+      <tbody>
+        <tr><td>永远不返回空数组</td><td>返回 <code>{"results": [], "total": 0, "message": "No tickets found for customer_id='xxx' with status='open'"}</code></td></tr>
+        <tr><td>包含建议性提示</td><td><code>"suggestion": "Try removing the status filter, or check if the customer_id is correct"</code></td></tr>
+        <tr><td>返回相关统计</td><td>告知模型"这个客户有 5 条 closed 的工单，但没有 open 的"，帮助模型决策</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.3 外部 API 超时/不可用</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🔴</span>
+    <div><strong>典型表现：</strong>网络超时、HTTP 5xx、第三方服务维护、速率限制（429）。</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>策略</th><th>实现方式</th></tr></thead>
+      <tbody>
+        <tr><td>超时控制</td><td>所有外部调用设置超时（建议 Data Tool 5-10s，Action Tool 15-30s）</td></tr>
+        <tr><td>指数退避重试</td><td>对瞬时错误最多重试 3 次，间隔 1s → 2s → 4s。<strong>重试对 Action Tool 需要幂等设计</strong></td></tr>
+        <tr><td>优雅降级</td><td>如果完整数据拿不到，返回部分可用数据（如缓存中的旧数据 + 标记"数据可能非最新"）</td></tr>
+        <tr><td>区分错误码</td><td>401/403 → 凭证问题，不要重试；404 → 资源不存在；429 → 速率限制，延迟重试；5xx → 服务端错误，可重试</td></tr>
+        <tr><td>熔断器模式</td><td>连续 3+ 次失败后暂停调用该工具 30s，避免雪崩</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.4 返回格式错乱</h3>
+  <div class="callout danger">
+    <span class="callout-icon">🔴</span>
+    <div><strong>典型表现：</strong>外部 API 返回了非预期的 JSON 结构；HTML 错误页面被当作数据；字段类型变化（字符串变成了数组）。</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>策略</th><th>实现方式</th></tr></thead>
+      <tbody>
+        <tr><td>返回值 Schema 校验</td><td>工具内部对外部 API 的响应做 schema 验证，不合格的不透传给模型</td></tr>
+        <tr><td>安全解析</td><td>用 try-catch 包裹 JSON 解析；对 HTML 响应做检测并报告"服务返回了非预期格式"</td></tr>
+        <tr><td>字段白名单</td><td>即使上游返回了 50 个字段，只提取预定义白名单内的字段给模型</td></tr>
+        <tr><td>质量熔断</td><td>如果连续 3 次返回值校验失败，触发 circuit breaker，停止调用并通知模型该工具暂时不可用</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.5 通用失败处理代码模板</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">Python</span><span>工具执行包装器</span></div>
+<pre><span class="hl-key">import</span> time
+<span class="hl-key">from</span> pydantic <span class="hl-key">import</span> ValidationError
+
+<span class="hl-key">def</span> <span class="hl-type">execute_tool_safely</span>(tool_fn, params, schema, max_retries=<span class="hl-val">3</span>):
+    <span class="hl-comment"># 1. 前置参数校验</span>
+    <span class="hl-key">try</span>:
+        validated = schema(**params)
+    <span class="hl-key">except</span> ValidationError <span class="hl-key">as</span> e:
+        <span class="hl-key">return</span> {
+            <span class="hl-str">"error"</span>: <span class="hl-val">True</span>,
+            <span class="hl-str">"error_type"</span>: <span class="hl-str">"InputValidationError"</span>,
+            <span class="hl-str">"message"</span>: <span class="hl-key">str</span>(e),
+            <span class="hl-str">"recoverable"</span>: <span class="hl-val">True</span>
+        }
+
+    <span class="hl-comment"># 2. 带重试的执行</span>
+    <span class="hl-key">for</span> attempt <span class="hl-key">in</span> <span class="hl-key">range</span>(max_retries):
+        <span class="hl-key">try</span>:
+            result = tool_fn(validated)
+
+            <span class="hl-comment"># 3. 返回值校验</span>
+            <span class="hl-key">if</span> result <span class="hl-key">is</span> <span class="hl-val">None</span> <span class="hl-key">or</span> result == []:
+                <span class="hl-key">return</span> {
+                    <span class="hl-str">"results"</span>: [],
+                    <span class="hl-str">"total"</span>: <span class="hl-val">0</span>,
+                    <span class="hl-str">"message"</span>: <span class="hl-str">"No results found matching your criteria."</span>,
+                    <span class="hl-str">"suggestion"</span>: <span class="hl-str">"Try broadening your search parameters."</span>
+                }
+
+            <span class="hl-key">return</span> {<span class="hl-str">"results"</span>: result, <span class="hl-str">"total"</span>: <span class="hl-key">len</span>(result)}
+
+        <span class="hl-key">except</span> TimeoutError:
+            <span class="hl-key">if</span> attempt < max_retries - <span class="hl-val">1</span>:
+                time.sleep(<span class="hl-val">2</span> ** attempt)  <span class="hl-comment"># 指数退避</span>
+                <span class="hl-key">continue</span>
+            <span class="hl-key">return</span> {
+                <span class="hl-str">"error"</span>: <span class="hl-val">True</span>,
+                <span class="hl-str">"error_type"</span>: <span class="hl-str">"TimeoutError"</span>,
+                <span class="hl-str">"message"</span>: <span class="hl-str">"Service did not respond after 3 attempts."</span>,
+                <span class="hl-str">"recoverable"</span>: <span class="hl-val">False</span>
+            }
+        <span class="hl-key">except</span> Exception <span class="hl-key">as</span> e:
+            <span class="hl-key">return</span> {
+                <span class="hl-str">"error"</span>: <span class="hl-val">True</span>,
+                <span class="hl-str">"error_type"</span>: <span class="hl-str">"ToolInternalError"</span>,
+                <span class="hl-str">"message"</span>: <span class="hl-key">f</span><span class="hl-str">"Unexpected error: {str(e)}"</span>,
+                <span class="hl-str">"recoverable"</span>: <span class="hl-val">False</span>
+            }</pre>
+  </div>
+
+  <div class="v11-update">
+    <div class="v11-update-header"><span class="v11-badge">v1.1</span><span>实战经验：搜索 Agent 遇到的真实失败及教训</span></div>
+    <div class="v11-update-body">
+      <p><strong>失败案例 1：连续 403 导致任务彻底失败</strong></p>
+      <p>Case 3（"对比 LangGraph 和 CrewAI"）中，<code>web_search</code> 成功返回了结果，但模型选择抓取的 URL 全部来自 Medium、DataCamp 等反爬站点，连续 5 次 <code>fetch_webpage</code> 全部返回 403，耗尽 MAX_TURNS 后无任何输出。</p>
+      <p><strong>教训：</strong>需要增加 <strong>URL 黑名单预过滤</strong>（已知反爬站点直接跳过），以及 <strong>fallback 机制</strong>（连续 N 次失败后，在 messages 中注入提示引导模型用已有 snippet 回答）。</p>
+      <p><strong>失败案例 2：模型跳过工具直接回答（静默失败）</strong></p>
+      <p>Case 1（诺贝尔奖）、Case 5（RAG 解释）、Case 7（不存在的东西）中，模型直接从训练数据回答，完全跳过了搜索工具。Agent Loop 将 <code>finish_reason == "stop"</code> 视为正常结束，没有检查"这个问题是否应该先搜索"。</p>
+      <p><strong>教训：</strong>当前工具返回的 <code>recoverable</code> 和 <code>suggestion</code> 字段只在工具失败时有意义。还需要增加一种新的失败检测——<strong>"模型应该用工具但没用"</strong>。这不是工具层面能解决的，需要 Agent Loop 层面的策略（如 system prompt 强约束或 structured output 强制决策步骤）。</p>
+      <p><strong>新增失败类型（v1.0 未覆盖）：</strong></p>
+      <p>⑤ <strong>模型绕过工具</strong>：模型有能力回答但信息可能过时或不准确。风险在于"看起来正确的错误答案"。应归类为最高优先级的静默失败。</p>
+      <p>⑥ <strong>工具间协作失败</strong>：搜索成功但所有抓取都失败，已有的 snippet 信息被浪费。工具之间缺少降级协作机制。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 6 ==================== -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <span class="section-num green">6</span>
+    <h2>工具数量控制原则</h2>
+  </div>
+
+  <p>工具越多并不意味着 Agent 越强。Anthropic 的上下文工程指南指出：<strong>最常见的失败模式之一是臃肿的工具集。</strong>OpenAI 也提到，问题不在于工具的绝对数量，而在于工具之间的相似性和重叠度。</p>
+
+  <h3>6.1 量化参考</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>模型</th><th>推荐工具数</th><th>上限</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>GPT-4.1 / GPT-5 系列</td><td>5-15 个</td><td>~100 个（in-distribution）</td><td>OpenAI o3/o4 指南：100 个以内、每个工具 20 个参数以内视为安全范围</td></tr>
+        <tr><td>Claude Opus/Sonnet 系列</td><td>5-15 个</td><td>视 context 预算而定</td><td>Anthropic 推荐 Tool Search 机制应对大规模工具库</td></tr>
+        <tr><td>开源模型</td><td>3-8 个</td><td>~15 个</td><td>工具越少表现越稳定；描述要更简洁</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.2 决策树：合并、拆分、还是升级多 Agent</h3>
+  <div class="decision-tree">
+    <div class="dt-node">
+      <div class="dt-connector"><div class="dt-dot" style="background:var(--accent-blue);"></div><div class="dt-line"></div></div>
+      <div class="dt-content">
+        <div class="dt-question">两个工具的功能是否高度重叠？</div>
+        <div class="dt-answer"><span class="tag data">是</span> → 合并为一个工具，用参数区分行为（如 <code>action: "search" | "list"</code>）</div>
+      </div>
+    </div>
+    <div class="dt-node">
+      <div class="dt-connector"><div class="dt-dot" style="background:var(--accent-cyan);"></div><div class="dt-line"></div></div>
+      <div class="dt-content">
+        <div class="dt-question">一个工具的参数列表超过 10 个？</div>
+        <div class="dt-answer"><span class="tag action">是</span> → 拆分为多个专用工具，按使用场景分组</div>
+      </div>
+    </div>
+    <div class="dt-node">
+      <div class="dt-connector"><div class="dt-dot" style="background:var(--accent-orange);"></div><div class="dt-line"></div></div>
+      <div class="dt-content">
+        <div class="dt-question">模型在多个相似工具之间频繁选错？</div>
+        <div class="dt-answer"><span class="tag action">是</span> → 先尝试优化 description 和命名区分度。如果仍然无效，合并为一个工具</div>
+      </div>
+    </div>
+    <div class="dt-node">
+      <div class="dt-connector"><div class="dt-dot" style="background:var(--accent-purple);"></div><div class="dt-line"></div></div>
+      <div class="dt-content">
+        <div class="dt-question">工具总数超过 15 个，且分属不同业务领域？</div>
+        <div class="dt-answer"><span class="tag orch">是</span> → 升级为多 Agent 架构：每个 Agent 持有各自领域 5-8 个工具</div>
+      </div>
+    </div>
+    <div class="dt-node">
+      <div class="dt-connector"><div class="dt-dot" style="background:var(--accent-green);"></div><div class="dt-line"></div></div>
+      <div class="dt-content">
+        <div class="dt-question">工具总数超过 50 个，且来自多个 MCP Server？</div>
+        <div class="dt-answer"><span class="tag orch">是</span> → 使用 Tool Search 机制按需加载，而非全部塞进 context</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scaling Diagram -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 860 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+      <defs>
+        <pattern id="dots4" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+          <circle cx="1" cy="1" r="0.5" fill="#2A2F3E"/>
+        </pattern>
+        <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#6BCB77"/>
+          <stop offset="40%" stop-color="#F5D76E"/>
+          <stop offset="70%" stop-color="#F0A55B"/>
+          <stop offset="100%" stop-color="#F07070"/>
+        </linearGradient>
+      </defs>
+      <rect width="860" height="240" fill="url(#dots4)" rx="8"/>
+
+      <!-- Axis -->
+      <line x1="80" y1="170" x2="780" y2="170" stroke="#3B4259" stroke-width="2"/>
+      <text x="430" y="202" text-anchor="middle" fill="#8B90A0" font-size="12" font-family="IBM Plex Sans, sans-serif">工具数量 →</text>
+
+      <!-- Gradient bar -->
+      <rect x="80" y="140" width="700" height="22" rx="11" fill="url(#g1)" opacity="0.6"/>
+
+      <!-- Zone labels -->
+      <text x="160" y="135" text-anchor="middle" fill="#6BCB77" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">安全区</text>
+      <text x="160" y="225" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">3-8 个工具</text>
+      <text x="160" y="120" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">单 Agent 足够</text>
+
+      <line x1="280" y1="130" x2="280" y2="175" stroke="#3B4259" stroke-width="1" stroke-dasharray="4"/>
+      <text x="390" y="135" text-anchor="middle" fill="#F5D76E" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">注意区</text>
+      <text x="390" y="225" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">8-15 个工具</text>
+      <text x="390" y="120" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">优化命名+描述</text>
+
+      <line x1="500" y1="130" x2="500" y2="175" stroke="#3B4259" stroke-width="1" stroke-dasharray="4"/>
+      <text x="590" y="135" text-anchor="middle" fill="#F0A55B" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">重构区</text>
+      <text x="590" y="225" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">15-50 个工具</text>
+      <text x="590" y="120" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">拆分多 Agent</text>
+
+      <line x1="680" y1="130" x2="680" y2="175" stroke="#3B4259" stroke-width="1" stroke-dasharray="4"/>
+      <text x="740" y="135" text-anchor="middle" fill="#F07070" font-size="12" font-weight="600" font-family="IBM Plex Sans, sans-serif">动态区</text>
+      <text x="740" y="225" text-anchor="middle" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">50+ 个工具</text>
+      <text x="740" y="120" text-anchor="middle" fill="#8B90A0" font-size="10" font-family="IBM Plex Sans, sans-serif">Tool Search 按需加载</text>
+
+      <!-- Arrow markers -->
+      <text x="80" y="225" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">少</text>
+      <text x="770" y="225" fill="#8B90A0" font-size="11" font-family="IBM Plex Sans, sans-serif">多</text>
+    </svg>
+    <div class="diagram-caption">图 4：工具数量与架构策略的对应关系 — 随着工具数量增长，架构需要相应升级</div>
+  </div>
+
+  <h3>6.3 合并与拆分的具体判断</h3>
+
+  <h4>应该合并的信号</h4>
+  <ul class="checklist">
+    <li>两个工具的 description 你自己写着都觉得难以区分</li>
+    <li>模型在评测中经常在这两个工具之间选错</li>
+    <li>两个工具共享 80% 以上的参数</li>
+    <li>调用 A 工具后几乎总是要调用 B 工具</li>
+  </ul>
+
+  <h4>应该拆分的信号</h4>
+  <ul class="checklist">
+    <li>一个工具的 description 需要超过 8 句话才能说清楚</li>
+    <li>参数超过 10 个，且分属不同的使用场景</li>
+    <li>工具内部有大量 if-else 分支来处理不同类型的请求</li>
+    <li>不同场景下工具的安全等级不同（查询 vs 删除）</li>
+  </ul>
+
+  <h4>应该升级为多 Agent 的信号</h4>
+  <ul class="checklist">
+    <li>工具分属明确不同的业务领域（CRM、财务、物流...）</li>
+    <li>不同工具需要不同的 system prompt 约束</li>
+    <li>单个 prompt 已经很长且频繁冲突</li>
+    <li>需要不同的安全级别和审批流程</li>
+  </ul>
+
+  <div class="v11-update">
+    <div class="v11-update-header"><span class="v11-badge">v1.1</span><span>实战经验：2 个工具是否需要合并？</span></div>
+    <div class="v11-update-body">
+      <p>搜索 Agent 只有 2 个工具（<code>web_search</code> + <code>fetch_webpage</code>），远在"安全区"内，但实测中仍然暴露了一个工具协作问题：</p>
+      <p><strong>"搜索 + 读取第一条结果" 是高频模式，但需要两轮 Agent 循环。</strong>对于简单的事实查询（如"某某奖颁给了谁"），模型需要先调 web_search，等结果回来后再决定是否调 fetch_webpage。这意味着即使最简单的搜索问答也至少需要 2 个 turn。</p>
+      <p><strong>是否应该合并为 search_and_read？</strong>按照 6.3 节的合并信号检查：① 两个工具的 description 能明确区分 ✓ ② 模型没有选错工具 ✓ ③ 参数不重叠 ✓ ④ 调用 A 后是否"几乎总是"调用 B？<strong>不是</strong>——实测 7 个 case 中只有 1 个触发了 fetch_webpage。</p>
+      <p><strong>结论：不合并。</strong>但可以考虑增加一个<strong>可选的</strong>组合工具 <code>search_and_read</code>，作为第三个工具供模型在需要深入内容时一步到位，而保留原来两个工具的独立性。这属于"增加工具"而非"合并工具"。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 7 ==================== -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <span class="section-num cyan">7</span>
+    <h2>实战案例：搜索 Agent 评测分析 <span class="v11-badge" style="margin-left:8px;font-size:9px;">v1.1 新增</span></h2>
+  </div>
+
+  <p>本章基于"网页搜索 + 总结" Agent 的 7 个测试用例，展示如何用评测数据反向验证和改进工具设计。这是将理论规范落地为工程实践的关键闭环。</p>
+
+  <h3>7.1 评测总览</h3>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>测试用例</th><th>工具调用</th><th>轮次</th><th>结果</th><th>问题归因</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>2024年诺贝尔物理学奖颁给了谁？</td><td><span class="case-tag fail">未调用</span></td><td>1</td><td><span class="case-tag warn">有回答但未验证</span></td><td>System Prompt 约束不足</td></tr>
+        <tr><td>2</td><td>MCP 协议是什么？</td><td><span class="case-tag pass">web_search ×1</span></td><td>2</td><td><span class="case-tag pass">✅ 正常</span></td><td>—</td></tr>
+        <tr><td>3</td><td>对比 LangGraph 和 CrewAI</td><td><span class="case-tag warn">5 次调用</span></td><td>5</td><td><span class="case-tag fail">❌ 无输出</span></td><td>连续 403 + 无 fallback</td></tr>
+        <tr><td>4</td><td>What are the new features in Qwen3?</td><td><span class="case-tag pass">web_search ×1</span></td><td>2</td><td><span class="case-tag pass">✅ 正常</span></td><td>—</td></tr>
+        <tr><td>5</td><td>用中文解释什么是 RAG</td><td><span class="case-tag fail">未调用</span></td><td>1</td><td><span class="case-tag warn">有回答但未验证</span></td><td>模型认为已知概念</td></tr>
+        <tr><td>6</td><td>写一首五言绝句</td><td><span class="case-tag pass">未调用（正确）</span></td><td>1</td><td><span class="case-tag pass">✅ 正常</span></td><td>—</td></tr>
+        <tr><td>7</td><td>xyzabc123 是什么？</td><td><span class="case-tag fail">未调用</span></td><td>1</td><td><span class="case-tag warn">直接说不知道</span></td><td>应先搜索再判断</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-num">通过率</div>
+      <div class="flow-step-label">4/7 (57%)</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">工具使用率</div>
+      <div class="flow-step-label">3/6 (50%)</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">有回答率</div>
+      <div class="flow-step-label">6/7 (86%)</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">工具错误率</div>
+      <div class="flow-step-label">1/8 (12.5%)</div>
+    </div>
+  </div>
+
+  <h3>7.2 失败归因分析</h3>
+
+  <p>将 7 个 case 的问题归因到本规范的各章节，验证哪些规范已生效、哪些需要加强：</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>失败类型</th><th>涉及 Case</th><th>对应规范章节</th><th>规范是否覆盖</th><th>下一步</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>模型绕过工具</strong></td>
+          <td>Case 1, 5, 7</td>
+          <td>第 2 章 命名规范（description）</td>
+          <td><span class="case-tag warn">部分覆盖</span></td>
+          <td>description 中增加"何时必须使用"的约束；第 3 周用 structured output 强制决策步骤</td>
+        </tr>
+        <tr>
+          <td><strong>连续工具失败无降级</strong></td>
+          <td>Case 3</td>
+          <td>第 5 章 失败处理</td>
+          <td><span class="case-tag warn">部分覆盖</span></td>
+          <td>v1.0 有重试策略但缺少"放弃 + 降级"策略；需增加 fallback 到已有数据的机制</td>
+        </tr>
+        <tr>
+          <td><strong>反爬站点浪费轮次</strong></td>
+          <td>Case 3</td>
+          <td>第 5 章 失败处理 §5.3</td>
+          <td><span class="case-tag fail">未覆盖</span></td>
+          <td>v1.1 新增：URL 黑名单 + HEAD 预检测策略</td>
+        </tr>
+        <tr>
+          <td><strong>中文搜索质量不稳定</strong></td>
+          <td>Case 1, 7</td>
+          <td>第 3 章 参数设计</td>
+          <td><span class="case-tag pass">已覆盖</span></td>
+          <td>description 已引导用英文搜索；可增加工具层 query 预处理</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>7.3 从评测数据反推的设计改进</h3>
+
+  <div class="callout tip">
+    <span class="callout-icon">💡</span>
+    <div><strong>核心发现：</strong>工具设计规范本身是正确的，但仅靠工具层面的优化不够。<strong>工具设计（本规范）、System Prompt 设计、Agent Loop 控制策略</strong>三者必须协同优化，任何一个环节薄弱都会拖垮整体表现。</div>
+  </div>
+
+  <h4>改进 1：工具 description 增加"强制触发条件"</h4>
+  <div class="compare">
+    <div class="compare-bad">
+      <div class="compare-label">❌ v1.0 写法（模型可能跳过）</div>
+<pre style="padding:0;background:transparent;font-size:12px;">"Use this when the user asks a question
+that requires up-to-date information."</pre>
+    </div>
+    <div class="compare-good">
+      <div class="compare-label">✅ v1.1 改进（更强约束）</div>
+<pre style="padding:0;background:transparent;font-size:12px;">"ALWAYS use this tool for: factual claims
+about specific people/events/dates,
+questions about technology comparisons,
+anything the user expects to be verified.
+Only skip this tool for: creative writing,
+general conversation, math calculations."</pre>
+    </div>
+  </div>
+
+  <h4>改进 2：fetch_webpage 增加 URL 预过滤</h4>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">Python</span><span>URL 黑名单 + HEAD 预检测</span></div>
+<pre><span class="hl-comment"># 已知反爬站点黑名单</span>
+BLOCKED_DOMAINS = [
+    <span class="hl-str">"medium.com"</span>, <span class="hl-str">"datacamp.com"</span>,
+    <span class="hl-str">"linkedin.com"</span>, <span class="hl-str">"quora.com"</span>,
+]
+
+<span class="hl-key">def</span> <span class="hl-type">fetch_webpage</span>(url):
+    <span class="hl-comment"># 黑名单快速拒绝</span>
+    <span class="hl-key">from</span> urllib.parse <span class="hl-key">import</span> urlparse
+    domain = urlparse(url).netloc
+    <span class="hl-key">if</span> <span class="hl-key">any</span>(d <span class="hl-key">in</span> domain <span class="hl-key">for</span> d <span class="hl-key">in</span> BLOCKED_DOMAINS):
+        <span class="hl-key">return</span> {
+            <span class="hl-str">"error"</span>: <span class="hl-val">True</span>,
+            <span class="hl-str">"error_type"</span>: <span class="hl-str">"BlockedDomain"</span>,
+            <span class="hl-str">"message"</span>: <span class="hl-key">f</span><span class="hl-str">"'{domain}' blocks automated access."</span>,
+            <span class="hl-str">"recoverable"</span>: <span class="hl-val">True</span>,
+            <span class="hl-str">"suggestion"</span>: <span class="hl-str">"Try a different URL from search results."</span>
+        }
+    <span class="hl-comment"># ... 正常抓取逻辑</span></pre>
+  </div>
+
+  <h4>改进 3：Agent Loop 增加 fallback 注入机制</h4>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">Python</span><span>连续失败后注入 fallback 提示</span></div>
+<pre>consecutive_errors = <span class="hl-val">0</span>
+
+<span class="hl-key">for</span> tool_call <span class="hl-key">in</span> assistant_message.tool_calls:
+    result = execute_tool(tool_call)
+    <span class="hl-key">if</span> result.get(<span class="hl-str">"error"</span>):
+        consecutive_errors += <span class="hl-val">1</span>
+    <span class="hl-key">else</span>:
+        consecutive_errors = <span class="hl-val">0</span>
+
+<span class="hl-comment"># 连续 2 次失败后注入降级提示</span>
+<span class="hl-key">if</span> consecutive_errors >= <span class="hl-val">2</span>:
+    messages.append({
+        <span class="hl-str">"role"</span>: <span class="hl-str">"user"</span>,
+        <span class="hl-str">"content"</span>: (<span class="hl-str">"Multiple fetch attempts have failed. "</span>
+            <span class="hl-str">"Please answer based on the search snippets "</span>
+            <span class="hl-str">"you already have, and note that full "</span>
+            <span class="hl-str">"articles were not available."</span>)
+    })</pre>
+  </div>
+</div>
+
+<hr class="sep">
+
+<!-- ==================== APPENDIX ==================== -->
+<div class="section" id="appendix">
+  <h2>附录：工具上线自检清单</h2>
+  <p>每个工具在上线前，都应通过以下检查项。这份清单同时适用于开发阶段的 self-review 和 code review。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>类别</th><th>检查项</th><th>通过标准</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="3"><strong>命名</strong></td><td>name 是否为 动词_名词 格式</td><td><code>search_documents</code> ✓ / <code>docs</code> ✗</td></tr>
+        <tr><td>name 是否与其他工具明确区分</td><td>无功能重叠的模糊命名</td></tr>
+        <tr><td>命名空间是否一致</td><td>同一领域的工具共享前缀</td></tr>
+        <tr><td rowspan="3"><strong>描述</strong></td><td>description 是否超过 3 句话</td><td>覆盖"做什么/何时用/返回什么"</td></tr>
+        <tr><td>是否说明了工具不能做什么</td><td>明确边界和局限性</td></tr>
+        <tr><td>是否说明了与相似工具的区别</td><td>模型不会混淆</td></tr>
+        <tr><td rowspan="3"><strong>参数</strong></td><td>参数名是否无歧义</td><td><code>user_id</code> ✓ / <code>user</code> ✗</td></tr>
+        <tr><td>每个参数是否有 description</td><td>包含格式说明和示例值</td></tr>
+        <tr><td>有限值参数是否用了 enum</td><td>消除猜测空间</td></tr>
+        <tr><td rowspan="3"><strong>返回值</strong></td><td>返回字段是否精简（≤10 个）</td><td>只含模型下一步推理所需信息</td></tr>
+        <tr><td>空结果是否有明确消息</td><td>不返回裸空数组</td></tr>
+        <tr><td>错误返回是否包含 type + message</td><td>模型能理解失败原因</td></tr>
+        <tr><td rowspan="3"><strong>安全</strong></td><td>Action Tool 是否有二次确认机制</td><td>高危操作需用户或人工审批</td></tr>
+        <tr><td>是否设置了超时和重试上限</td><td>避免无限等待</td></tr>
+        <tr><td>是否有输入消毒（sanitization）</td><td>防止注入攻击</td></tr>
+        <tr><td rowspan="4"><strong>实战<br><span class="v11-badge" style="font-size:8px;">v1.1</span></strong></td><td>参数是否做了多语言兼容</td><td>description 引导 + 工具内映射兜底</td></tr>
+        <tr><td>外部依赖 URL 是否有黑名单</td><td>已知反爬站点快速拒绝</td></tr>
+        <tr><td>连续失败是否有降级策略</td><td>不依赖模型自行决定何时放弃</td></tr>
+        <tr><td>description 是否包含"何时必须使用"</td><td>减少模型绕过工具的概率</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<div class="footer">
+  <p>AI Agent Tool 设计规范 v1.1 — 第二周学习产出物</p>
+  <p style="margin-top:6px;">基于 Anthropic《Building Effective Agents》《Writing Tools for Agents》《Effective Context Engineering》<br>及 OpenAI《A Practical Guide to Building Agents》《Function Calling Guide》提炼</p>
+  <p style="margin-top:6px;">v1.1 更新基于"网页搜索 + 总结" Agent 实测 7 个用例的评测数据（2026-03-30）</p>
+</div>
+
+</div>
+</body>
+</html>
