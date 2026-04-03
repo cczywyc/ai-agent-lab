@@ -1,181 +1,194 @@
 """
-tools.py — 工具实现与注册
-==========================
-包含两个 Data Tool：
-  1. web_search    — 网页搜索（DuckDuckGo）
-  2. fetch_webpage — 网页内容提取（readability）
+搜索 Agent 工具集
 
-设计原则（来自《Tool 设计规范 v1.0》）：
-  - 返回值高信号、低噪音，只包含模型推理所需字段
-  - 错误返回包含 error_type + message + recoverable + suggestion
-  - 工具内部做容错（如中英文映射），不依赖模型总是传完美参数
+工具清单：
+  1. web_search  — 搜索引擎查询（Data Tool，只读）
+  2. fetch_webpage — 网页正文提取（Data Tool，只读）
+
+v2.0 变更：
+  - fetch_webpage 增加 URL 黑名单预过滤
+  - 统一错误返回格式（error_type + message + recoverable + suggestion）
+  - 返回值精简，控制 token 消耗
 """
+
 import json
-import re
+import time
+from urllib.parse import urlparse
 
-import httpx
-from ddgs import DDGS
-from readability import Document
-
-from config import MAX_SEARCH_RESULTS, MAX_WEBPAGE_LENGTH
+from config import BLOCKED_DOMAINS
 
 
-# ===================================================================
-# 工具 1：网页搜索
-# ===================================================================
+# ============================================================
+# 工具 1：web_search — 搜索引擎查询
+# ============================================================
 
-def web_search(query: str, max_results: int = MAX_SEARCH_RESULTS) -> dict:
+
+def web_search(query: str, max_results: int = 5) -> dict:
     """
-    使用 DuckDuckGo 搜索网页，返回精简的结果列表。
+    使用 DuckDuckGo 搜索引擎查询。
 
-    参数:
-        query: 搜索关键词
-        max_results: 返回结果数量，范围 1-10
-
-    返回:
-        成功: {"results": [...], "total": N, "query": "..."}
-        失败: {"error": True, "error_type": "...", "message": "...", ...}
+    返回精简的搜索结果：title + url + snippet（每条截断 200 字符）。
     """
-    # 参数边界保护
-    max_results = max(1, min(10, max_results))
-
     try:
-        with DDGS() as ddgs:
+        from ddgs import DDGS
+
+        with DDGS(proxy=None) as ddgs:  # 如需代理在此配置
             raw_results = list(ddgs.text(query, max_results=max_results))
 
-        # 空结果处理 — 永远不返回裸空数组
         if not raw_results:
             return {
                 "results": [],
                 "total": 0,
-                "query": query,
                 "message": f"No results found for '{query}'.",
-                "suggestion": "Try different keywords, a broader query, or switch language (Chinese/English)."
+                "suggestion": "Try different keywords or a broader search term.",
             }
 
-        # 只保留模型需要的字段（精简原则）
-        clean_results = []
+        # 精简返回值：只保留 title, url, snippet
+        results = []
         for r in raw_results:
-            clean_results.append({
+            results.append({
                 "title": r.get("title", ""),
-                "url": r.get("href", ""),
-                "snippet": r.get("body", "")[:200]
+                "url": r.get("href", r.get("link", "")),
+                "snippet": (r.get("body", r.get("snippet", "")))[:200],
             })
 
         return {
-            "results": clean_results,
-            "total": len(clean_results),
-            "query": query
+            "results": results,
+            "total": len(results),
+            "query": query,
         }
 
     except Exception as e:
-        error_msg = str(e)
-
-        # 区分常见错误类型，给出针对性建议
-        if "ConnectError" in error_msg or "ProxyError" in error_msg:
-            return {
-                "error": True,
-                "error_type": "NetworkError",
-                "message": f"Cannot connect to search service. Proxy or network issue: {error_msg[:100]}",
-                "recoverable": False,
-                "suggestion": "Check network/proxy configuration."
-            }
-        elif "RatelimitE" in error_msg or "429" in error_msg:
-            return {
-                "error": True,
-                "error_type": "RateLimitError",
-                "message": "Search rate limit reached.",
-                "recoverable": True,
-                "suggestion": "Wait a moment and try again with fewer results."
-            }
-        else:
-            return {
-                "error": True,
-                "error_type": "APIFailure",
-                "message": f"Search failed: {error_msg[:150]}",
-                "recoverable": True,
-                "suggestion": "Try again with simpler or different keywords."
-            }
+        return {
+            "error": True,
+            "error_type": "SearchError",
+            "message": f"Search failed: {str(e)}",
+            "recoverable": True,
+            "suggestion": "Try a simpler or different query.",
+        }
 
 
-# ===================================================================
-# 工具 2：网页内容提取
-# ===================================================================
+# ============================================================
+# 工具 2：fetch_webpage — 网页正文提取
+# ============================================================
 
-def fetch_webpage(url: str, max_length: int = MAX_WEBPAGE_LENGTH) -> dict:
+
+def fetch_webpage(url: str) -> dict:
     """
-    获取网页正文内容，使用 readability 提取主要内容，过滤导航栏/广告等噪音。
+    获取网页正文内容。
 
-    参数:
-        url: 完整的网页 URL
-
-    返回:
-        成功: {"title": "...", "url": "...", "content": "...", "truncated": bool}
-        失败: {"error": True, "error_type": "...", "message": "...", ...}
+    包含 URL 黑名单预过滤 + 内容截断（3000 字符）。
     """
+    # === 黑名单预过滤 ===
     try:
-        resp = httpx.get(
-            url,
-            timeout=10,
-            follow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; ResearchBot/1.0)"}
-        )
-        resp.raise_for_status()
-
-        doc = Document(resp.text)
-        title = doc.title()
-
-        # 提取纯文本，去掉 HTML 标签
-        content = re.sub(r'<[^>]+>', '', doc.summary())
-        content = re.sub(r'\s+', ' ', content).strip()
-
-        if not content:
+        domain = urlparse(url).netloc.lower()
+        # 检查域名是否在黑名单中（支持子域名匹配）
+        if any(blocked in domain for blocked in BLOCKED_DOMAINS):
             return {
                 "error": True,
-                "error_type": "NotFoundError",
-                "message": f"No readable content extracted from {url}. The page may require JavaScript or login.",
-                "recoverable": False,
-                "suggestion": "Try a different URL from the search results."
+                "error_type": "BlockedDomain",
+                "message": f"'{domain}' is known to block automated access.",
+                "recoverable": True,
+                "suggestion": "Try a different URL from the search results, or answer based on available snippets.",
+            }
+    except Exception:
+        pass  # URL 解析失败，让后续请求来报错
+
+    # === 实际抓取 ===
+    try:
+        import httpx
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+
+        with httpx.Client(timeout=10, follow_redirects=True) as http_client:
+            resp = http_client.get(url, headers=headers)
+            resp.raise_for_status()
+            html = resp.text
+
+        # 尝试用 readability 提取正文
+        try:
+            from readability import Document
+            doc = Document(html)
+            title = doc.title()
+            # 简单清理 HTML 标签
+            import re
+            content = re.sub(r"<[^>]+>", "", doc.summary())
+            content = re.sub(r"\s+", " ", content).strip()
+        except ImportError:
+            # 没有 readability，做基础提取
+            import re
+            content = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.S)
+            content = re.sub(r"<style[^>]*>.*?</style>", "", content, flags=re.S)
+            content = re.sub(r"<[^>]+>", "", content)
+            content = re.sub(r"\s+", " ", content).strip()
+            title = ""
+
+        # 截断到 3000 字符
+        max_len = 3000
+        truncated = len(content) > max_len
+        content = content[:max_len]
+
+        if not content or len(content) < 50:
+            return {
+                "error": True,
+                "error_type": "EmptyContent",
+                "message": f"Page at '{url}' returned no meaningful content.",
+                "recoverable": True,
+                "suggestion": "Try a different URL from the search results.",
             }
 
         return {
-            "title": title,
             "url": url,
-            "content": content[:max_length],
-            "truncated": len(content) > max_length,
-            "content_length": len(content)
+            "title": title,
+            "content": content,
+            "truncated": truncated,
+            "char_count": len(content),
+        }
+
+    except httpx.HTTPStatusError as e:
+        status = e.response.status_code
+        error_type = {
+            403: "Forbidden",
+            404: "NotFound",
+            429: "RateLimited",
+        }.get(status, "HTTPError")
+
+        return {
+            "error": True,
+            "error_type": error_type,
+            "message": f"HTTP {status} when fetching '{url}'.",
+            "recoverable": status != 404,  # 404 不可恢复
+            "suggestion": "Try a different URL from the search results.",
         }
 
     except httpx.TimeoutException:
         return {
             "error": True,
-            "error_type": "TimeoutError",
-            "message": f"Request to {url} timed out after 10s.",
+            "error_type": "Timeout",
+            "message": f"Request timed out for '{url}'.",
             "recoverable": True,
-            "suggestion": "Try a different URL from the search results."
+            "suggestion": "Try a different URL, or answer based on available snippets.",
         }
-    except httpx.HTTPStatusError as e:
-        code = e.response.status_code
-        return {
-            "error": True,
-            "error_type": "HTTPError",
-            "message": f"HTTP {code} when fetching {url}.",
-            "recoverable": code >= 500,
-            "suggestion": "Try a different URL." if code == 403 or code == 404 else "The server may be temporarily unavailable, try again later."
-        }
+
     except Exception as e:
         return {
             "error": True,
-            "error_type": "ToolInternalError",
-            "message": f"Failed to fetch {url}: {str(e)[:100]}",
-            "recoverable": False,
-            "suggestion": "Try a different URL from the search results."
+            "error_type": "FetchError",
+            "message": f"Failed to fetch '{url}': {str(e)}",
+            "recoverable": True,
+            "suggestion": "Try a different URL from the search results.",
         }
 
 
-# ===================================================================
-# 工具定义（OpenAI/千问 格式）
-# ===================================================================
+# ============================================================
+# 工具定义（OpenAI 格式，传给 API 的 tools 参数）
+# ============================================================
 
 TOOL_DEFINITIONS = [
     {
@@ -183,13 +196,12 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "web_search",
             "description": (
-                "Search the web using DuckDuckGo and return relevant results. "
-                "Use this when the user asks a question that requires up-to-date "
-                "information, facts you're unsure about, or current events. "
-                "Returns a list of results with title, URL, and snippet. "
-                "Does NOT fetch the full content of web pages — use "
-                "fetch_webpage for that. "
-                "For best results, use concise English keywords as the query."
+                "Search the web using a search engine. Returns up to 5 results, "
+                "each with title, URL, and a brief snippet (max 200 chars). "
+                "Use this FIRST for any factual question, technical topic, "
+                "or when you need up-to-date information. "
+                "Use concise English keywords for best results (2-5 words). "
+                "Does NOT fetch full page content — use fetch_webpage for that."
             ),
             "parameters": {
                 "type": "object",
@@ -197,76 +209,89 @@ TOOL_DEFINITIONS = [
                     "query": {
                         "type": "string",
                         "description": (
-                            "Search query string. Use concise keywords for best results. "
-                            "Prefer English keywords even if the user asks in Chinese. "
-                            "Example: '2024 Nobel Prize Physics winner'"
-                        )
-                    },
-                    "max_results": {
-                        "type": "integer",
-                        "description": "Number of results to return. Range: 1-10. Default: 5 if omitted."
+                            "Search query in concise English keywords. "
+                            "Example: 'MCP Model Context Protocol', "
+                            "'LangGraph vs CrewAI comparison'. "
+                            "2-5 words works best."
+                        ),
                     }
                 },
-                "required": ["query"]
-            }
-        }
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "fetch_webpage",
             "description": (
-                "Fetch and extract the main text content from a web page URL. "
-                "Use this AFTER web_search when you need the full article content "
-                "rather than just the search snippet. "
-                "Returns the page title and extracted main content (max 3000 chars). "
-                "Does NOT work on pages requiring login, JavaScript rendering, or PDF files. "
-                "If this tool fails, try a different URL from the search results."
+                "Fetch and extract the main text content from a webpage URL. "
+                "Use this AFTER web_search when you need more detailed content "
+                "than the search snippets provide. "
+                "Returns the article body text, truncated to 3000 characters. "
+                "Some websites may block access (403 error) — if this happens, "
+                "try a different URL from the search results. "
+                "Do NOT guess URLs; only use URLs returned by web_search."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "url": {
                         "type": "string",
-                        "description": "The full URL to fetch, e.g. 'https://example.com/article'. Must start with http:// or https://."
+                        "description": (
+                            "The full URL to fetch. Must be a URL from "
+                            "web_search results. Example: 'https://example.com/article'."
+                        ),
                     }
                 },
-                "required": ["url"]
-            }
-        }
-    }
+                "required": ["url"],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
-
-# ===================================================================
-# 工具注册表 — 解耦工具定义和工具实现
-# ===================================================================
+# ============================================================
+# 工具注册表（name → function 映射）
+# ============================================================
 
 TOOL_REGISTRY = {
-    "web_search": lambda args: web_search(
-        query=args["query"],
-        max_results=args.get("max_results", MAX_SEARCH_RESULTS)
-    ),
-    "fetch_webpage": lambda args: fetch_webpage(
-        url=args["url"]
-    ),
+    "web_search": web_search,
+    "fetch_webpage": fetch_webpage,
 }
 
 
-def execute_tool(tool_name: str, tool_args: dict) -> str:
+def execute_tool(tool_name: str, tool_args: dict) -> dict:
     """
-    统一的工具执行入口。
+    统一工具执行入口。
 
-    返回值始终是 JSON 字符串（符合 OpenAI tool result 格式要求）。
+    通过注册表查找并执行工具函数。
+    新增工具只需：1.写函数 2.加定义 3.注册。
     """
-    if tool_name in TOOL_REGISTRY:
-        result = TOOL_REGISTRY[tool_name](tool_args)
-    else:
-        result = {
+    func = TOOL_REGISTRY.get(tool_name)
+    if func is None:
+        return {
             "error": True,
-            "error_type": "ToolNotFound",
-            "message": f"Unknown tool: '{tool_name}'. Available tools: {list(TOOL_REGISTRY.keys())}",
-            "recoverable": False
+            "error_type": "UnknownTool",
+            "message": f"Tool '{tool_name}' is not registered.",
+            "recoverable": False,
         }
 
-    return json.dumps(result, ensure_ascii=False)
+    try:
+        return func(**tool_args)
+    except TypeError as e:
+        return {
+            "error": True,
+            "error_type": "InvalidArguments",
+            "message": f"Invalid arguments for '{tool_name}': {str(e)}",
+            "recoverable": True,
+            "suggestion": "Check the parameter names and types.",
+        }
+    except Exception as e:
+        return {
+            "error": True,
+            "error_type": "ToolExecutionError",
+            "message": f"Tool '{tool_name}' failed: {str(e)}",
+            "recoverable": False,
+        }
