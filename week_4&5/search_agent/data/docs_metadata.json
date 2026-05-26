@@ -1,0 +1,702 @@
+[
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形",
+    "chunk_id": 0,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形\n\n> **周期**：2026-03-23（周一）— 2026-03-29（周日）\n> **目标**：掌握 tool calling 机制，构建一个\"网页搜索 + 总结\"的最小 Agent\n> **产出**：搜索 Agent demo + Tool 设计规范 v1.1\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周一 — 概念与文档阅读（Tool Calling 机制）",
+    "chunk_id": 1,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周一 — 概念与文档阅读（Tool Calling 机制）\n\n阅读了 6 篇核心文档，建立 tool calling 的完整认知：\n\n| 序号 | 文档 | 关键收获 |\n|------|------|---------|\n| 1 | Anthropic - Building Effective Agents | Agent 体系全景，\"先简单后复杂\"原则 |\n| 2 | Anthropic - Writing Tools for Agents | 工具设计方法论：评测驱动、描述优先、迭代优化 |\n| 3 | Anthropic - Tool Use Overview | Claude tool calling 的完整 API 流程 |\n| 4 | Anthropic - How to Implement Tool Use | 代码实现细节、input_examples、tool call loop |\n| 5 | OpenAI - Function Calling Guide | strict mode、parallel calls、tool_choice |\n| 6 | Anthropic - Advanced Tool Use | Tool Search、Programmatic Tool Calling |\n\n产出：完成 5 个核心问题的参考答案笔记。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周二 — 概念深化（工具设计实战与失败模式）",
+    "chunk_id": 2,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周二 — 概念深化（工具设计实战与失败模式）\n\n聚焦工具选择逻辑、返回值设计、失败模式分类：\n\n- 阅读 OpenAI《A Practical Guide to Building Agents》完整 PDF，理解 Data / Action / Orchestration 三类工具\n- 阅读 Anthropic《Effective Context Engineering》，理解\"工具集臃肿是最常见失败模式\"\n- 阅读生产级错误处理模式文章，理解\"最危险的失败看起来像成功\"\n- **产出：《Tool 设计规范 v1.0》初稿**（HTML 格式，含 4 张 SVG 图表）",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周三 — 跑通官方示例（正式写代码）",
+    "chunk_id": 3,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周三 — 跑通官方示例（正式写代码）\n\nAPI 选型过程：\n\n- 原计划用 OpenAI，但中转服务不可用（先是 URL 错误返回管理面板 HTML，修正后渠道无可用模型）\n- Anthropic 中转测试通过\n- 最终决定使用阿里千问（qwen-plus），通过 OpenAI SDK 兼容接口调用\n- 千问 API 连通验证成功\n\n完成 3 个递进练习：\n\n| 练习 | 文件 | 核心学习点 |\n|------|------|-----------|\n| 基础调用 | 01_basic_tool_calling.py | 完整的请求-响应结构：finish_reason、tool_calls、tool_call_id |\n| 多工具选择 | 02_multi_tools.py | 模型如何在多个工具间选择、parallel tool calls |\n| Agent Loop | 03_tool_loop.py | while 循环 + 工具注册表模式，所有 Agent 的核心骨架 |\n\n**关键踩坑**：模型用中文 \"北京\" 填参数，但 mock 数据 key 是 \"Beijing\"。\n\n**解法**：双重保障 —— description 里明确要求英文 + 工具内部做中英文映射兜底。这个经验直接验证了《Tool 设计规范》第三章\"消除歧义\"原则。\n\n附加产出：完成 Anthropic vs OpenAI/千问格式对照表。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周四 — 构建搜索 Agent（接真实 API）",
+    "chunk_id": 4,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周四 — 构建搜索 Agent（接真实 API）\n\n从 mock 数据升级到真实搜索引擎：\n\n- **搜索工具**：接入 DuckDuckGo（DDGS），返回精简的 title + url + snippet\n- **网页提取工具**：使用 httpx + readability 提取正文，过滤噪音\n- **Agent Loop**：复用周三的循环模式 + 加上 trace 记录\n\n**踩坑 1**：`duckduckgo_search` 包已更名为 `ddgs`，运行时有 RuntimeWarning。解法：`pip install ddgs` 并更新 import。\n\n**踩坑 2**：DuckDuckGo 底层走 Bing，网络不通导致 ConnectError。解法：DDGS 构造函数配置 proxy 参数。\n\n**踩坑 3**：fetch_webpage 在 Medium、DataCamp 等站点遇到 403，浪费 Agent 循环轮次。这暴露了工具缺少 URL 预检测的问题。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周五 — 重构与打磨",
+    "chunk_id": 5,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周五 — 重构与打磨\n\n将搜索 Agent 重构为模块化项目：\n\n```\nsearch_agent/\n├── config.py   → 客户端、模型、System Prompt\n├── tools.py    → 工具实现 + 定义 + 注册表\n├── agent.py    → Agent Loop + Trace\n└── main.py     → 交互/单查/测试 三种运行模式\n```\n\n核心改进：\n- config.py 集中管理所有配置，换模型或 API 只改一处\n- tools.py 的 `execute_tool()` 统一入口，新增工具只需三步\n- main.py 支持交互式对话、单次查询、批量测试三种模式\n- 测试套件自动生成 test_report.json",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周六 — 总结与复盘",
+    "chunk_id": 6,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周六 — 总结与复盘\n\n- 运行完整测试套件，分析 7 个用例的表现\n- 更新《Tool 设计规范》到 v1.1，补充实战经验\n- 撰写本复盘文档\n- 整理代码仓库和 README",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周日 — 评测与收尾",
+    "chunk_id": 7,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 一、本周时间线 > 周日 — 评测与收尾\n\n- 补充边界测试场景\n- 完善 README 中的已知问题和待改进清单\n- 代码最终整理和 commit\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 1：工具描述是影响 Agent 质量的最大杠杆",
+    "chunk_id": 8,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 1：工具描述是影响 Agent 质量的最大杠杆\n\n周一读文档时看到 Anthropic 说\"description 对性能的影响远超其他因素\"，当时理解浮于表面。周三亲手写代码后才真正体会到——同一个工具，description 写得好和写得差，模型的选择准确率和参数填写质量差别巨大。\n\n**实例**：`web_search` 的 description 里加上 \"Does NOT fetch full content — use fetch_webpage for that\" 后，模型明显减少了对搜索工具的误用，需要深入内容时会主动选择 fetch_webpage。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 2：模型不执行工具，只决定调用什么",
+    "chunk_id": 9,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 2：模型不执行工具，只决定调用什么\n\n这个设计原则是整个安全控制体系的基石。周三写第一个 tool calling 示例时，我清楚地看到了这个分界线：模型返回 `tool_calls` 后，**所有的执行权在我的代码手中**。这意味着参数校验、权限检查、危险操作确认都可以在执行前拦截。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 3：最危险的失败是\"看起来像成功\"的失败",
+    "chunk_id": 10,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 3：最危险的失败是\"看起来像成功\"的失败\n\n周二读到这个概念时印象深刻，但周四实测时更直观地感受到了——Case 1（诺贝尔奖）模型直接回答了一个\"看起来正确\"的答案，完全跳过了搜索工具。如果模型的训练数据里有错误信息，这个回答就会是自信的错误，而用户完全无法分辨。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 4：Agent 的控制循环设计比想象中复杂",
+    "chunk_id": 11,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 4：Agent 的控制循环设计比想象中复杂\n\n周三写的 Agent Loop 看起来就是一个简单的 while 循环，但周四实测暴露了大量边界问题：退出条件太简单、最大轮次不够灵活、错误恢复依赖模型自行决策、上下文无限增长。一个\"能跑通\"的 Loop 和一个\"生产可用\"的 Loop 之间差距巨大。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 5：工具设计和 system prompt 需要协同优化",
+    "chunk_id": 12,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 5：工具设计和 system prompt 需要协同优化\n\n单独优化工具或单独优化 prompt 都不够。实测中发现，即使工具的 description 写得很清楚，如果 system prompt 没有明确约束\"事实性问题必须先搜索\"，模型仍然会跳过工具直接回答。反过来，如果 system prompt 约束了但工具描述模糊，模型也会选错工具。两者必须一起设计、一起迭代。\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 三、踩坑记录",
+    "chunk_id": 13,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 三、踩坑记录\n\n| # | 现象 | 原因 | 解法 | 归类 |\n|---|------|------|------|------|\n| 1 | 中转服务返回 HTML 页面而非 API 响应 | `OPENAI_BASE_URL` 没有带 `/v1` 路径，指向了管理面板首页 | 检查 URL 格式，确认末尾有 `/v1` | 环境配置 |\n| 2 | 503 报错\"无可用渠道\" | 中转服务的 OpenAI 渠道未配置或没有额度 | 改用千问 API（有免费额度且国内直连） | 环境配置 |\n| 3 | \"北京\" 查不到天气数据 | 模型用中文填参数，mock 数据 key 是英文 \"Beijing\" | description 约束 + 工具内中英文映射兜底 | 参数设计 |\n| 4 | `duckduckgo_search` 运行时 Warning | 包已更名为 `ddgs` | `pip install ddgs` 并更新 import | 依赖变更 |\n| 5 | DuckDuckGo 搜索 ConnectError | 底层走 Bing，网络不通 | DDGS 构造函数配置 proxy 参数 | 网络环境 |\n| 6 | fetch_webpage 在 Medium 等站点 403 | 这些站点有反爬机制 | 需要增加 URL 黑名单或预检测（待改进） | 工具设计 |\n| 7 | 模型跳过搜索直接回答事实性问题 | system prompt 对\"何时必须搜索\"的约束太模糊 | 需要更精确的 prompt 约束（待改进） | Prompt 设计 |\n| 8 | 对比类问题耗尽 5 轮次无输出 | 连续 fetch_webpage 失败 + 无 fallback 机制 | 需要在 Agent Loop 中加入失败降级策略（待改进） | Agent Loop |\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 四、Anthropic vs OpenAI/千问 格式对比 > 两者的本质是相同的",
+    "chunk_id": 14,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 四、Anthropic vs OpenAI/千问 格式对比 > 两者的本质是相同的\n\nTool calling 的核心流程在任何 LLM 上都一样：**定义工具 → 模型决策 → 执行工具 → 返回结果 → 模型综合**。区别只在于 API 的字段名和消息结构。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 四、Anthropic vs OpenAI/千问 格式对比 > 关键差异点",
+    "chunk_id": 15,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 四、Anthropic vs OpenAI/千问 格式对比 > 关键差异点\n\n| 维度 | Anthropic (Claude) | OpenAI / 千问 |\n|------|-------------------|---------------|\n| 工具参数字段 | `input_schema` | `parameters`（嵌套在 function 对象内） |\n| 工具定义结构 | 扁平：直接 name/description/input_schema | 包装：`{\"type\": \"function\", \"function\": {...}}` |\n| 模型要调用工具的信号 | `stop_reason == \"tool_use\"` | `finish_reason == \"tool_calls\"` |\n| 工具调用在哪里 | response.content 中的 tool_use block | message.tool_calls 列表 |\n| 工具参数格式 | `input` 是 dict | `arguments` 是 JSON 字符串，需要 `json.loads()` |\n| 工具结果的角色 | `role: \"user\"` + `type: \"tool_result\"` | `role: \"tool\"`（专用角色） |\n| 示例机制 | 原生 `input_examples` 字段 | 无原生字段，需在 description 中手写 |\n| Strict 模式 | 无 | `strict: true` 保证参数严格匹配 schema |",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 四、Anthropic vs OpenAI/千问 格式对比 > 通用的、与 LLM 无关的概念",
+    "chunk_id": 16,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 四、Anthropic vs OpenAI/千问 格式对比 > 通用的、与 LLM 无关的概念\n\n这些概念换任何模型都适用，是 Agent 工程师的核心素养：\n- 工具三分类：Data / Action / Orchestration\n- Description 六要素模型\n- 返回值的\"高信号低噪音\"原则\n- 错误返回的标准格式：error_type + message + recoverable + suggestion\n- Agent Loop 的 while 循环模式 + 最大轮次保护\n- 工具注册表模式（TOOL_REGISTRY）\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式",
+    "chunk_id": 17,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式\n\nAgent Loop 是所有 Agent 系统的心脏。通过本周的实践，我理解的 Agent Loop 本质是：\n\n```\n初始化 messages = [system_prompt, user_message]\n\nfor turn in range(max_turns):\n    response = LLM.call(messages, tools)\n\n    if response.wants_to_answer:        # finish_reason == \"stop\"\n        return response.text            # 出口 1：正常结束\n\n    if response.wants_tools:            # finish_reason == \"tool_calls\"\n        messages.append(response)       # 保留模型的决策记录\n\n        for tool_call in response.tool_calls:\n            result = execute(tool_call)  # 开发者执行\n            messages.append(result)      # 追加工具结果\n\n        continue                        # 回到循环顶部\n\nreturn \"达到最大轮次\"                    # 出口 2：安全终止\n```",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式 > 当前实现的不足（本周发现）",
+    "chunk_id": 18,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式 > 当前实现的不足（本周发现）\n\n1. **退出条件太简单**：只看 finish_reason，没有判断\"模型是否应该先搜索再回答\"\n2. **无 fallback 机制**：工具连续失败时没有主动引导模型降级\n3. **上下文无管理**：messages 无限增长，长对话可能溢出\n4. **错误元数据未利用**：工具返回了 recoverable/suggestion，Agent Loop 没有读取和利用\n\n这些都是第三周需要改进的方向。\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 总体数据",
+    "chunk_id": 19,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 总体数据\n\n| 指标 | 数值 |\n|------|------|\n| 总测试用例 | 7 |\n| 通过（工具选择正确 + 有回答） | 4/7（57%） |\n| 工具使用准确率 | 4/7（case 1/5/7 应该用工具但没用） |\n| 有回答率 | 6/7（case 3 耗尽轮次无输出） |\n| 平均轮次（有工具调用） | 3.0 |\n| 错误率 | 1/7（case 3 遇到 403） |",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析",
+    "chunk_id": 20,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析\n\n**Case 1 — 诺贝尔奖（❌ 未调用工具）**\n模型直接从训练数据回答，跳过了搜索。回答看起来正确，但无法验证时效性。暴露了 system prompt 对\"事实性问题必须搜索\"的约束不足。\n\n**Case 2 — MCP 协议（✅ 正常）**\n搜索 → 直接从 snippet 总结，2 轮完成。模型正确判断了这是需要搜索的技术概念。\n\n**Case 3 — LangGraph vs CrewAI（❌ 耗尽轮次）**\n搜索成功但 fetch_webpage 连续遇到 403（Medium、DataCamp 等反爬站点），5 轮全部用于重试抓取，最终无输出。核心问题：无 URL 黑名单 + 无 fallback 到 snippet 的机制。\n\n**Case 4 — Qwen3 features（✅ 正常）**\n英文搜索 → 英文回答，2 轮完成。模型正确使用了英文关键词。\n\n**Case 5 — RAG 解释（❌ 未调用工具）**\n模型认为 RAG 是已知概念，直接回答。回答质量不错但没有引用来源。反映了\"常识 vs 需搜索\"的边界模糊。\n\n**Case 6 — 写诗（✅ 正常）**\n正确判断不需要工具，直接创作。\n\n**Case 7 — 不存在的东西（❌ 未调用工具）**\n模型直接说不知道，没有先尝试搜索。理想行为应该是先搜一下确认确实不存在，再告知用户。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 核心发现",
+    "chunk_id": 21,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 核心发现\n\n1. **模型倾向于\"能回答就回答\"**，即使 system prompt 要求先搜索。这是 LLM 的固有行为模式，需要更强的 prompt 约束或 Agent Loop 层面的强制机制。\n2. **工具失败的连锁效应很严重**。一次 403 不可怕，但连续 403 + 无降级机制 = 整个任务失败。\n3. **工具使用率（43%）远低于预期**。说明当前的 system prompt 和工具描述在\"何时该用工具\"的引导上不够有效。\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第三周（Prompt + Structured Output + 控制循环）",
+    "chunk_id": 22,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第三周（Prompt + Structured Output + 控制循环）\n\n我的搜索 Agent 最需要改进的就是这三个方面：\n- **System prompt 优化**：更精确地区分\"常识问答\"和\"需搜索验证的问答\"\n- **Structured output**：让模型输出固定 JSON 格式（如 `{\"action\": \"search\", \"query\": \"...\"}` 或 `{\"action\": \"answer\", \"content\": \"...\"}`），而不是自由决策\n- **控制循环改进**：加入 fallback 策略、重试上限、上下文裁剪",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第四周（RAG）",
+    "chunk_id": 23,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第四周（RAG）\n\n搜索 Agent 的 `web_search` + `fetch_webpage` 模式和 RAG 很相似——都是\"检索 → 获取内容 → 基于内容回答\"。区别在于 RAG 用向量检索代替关键词搜索，用预处理的文档代替实时网页。搜索 Agent 的 tool calling 模式和 Agent Loop 可以直接复用。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第五周（记忆系统）",
+    "chunk_id": 24,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第五周（记忆系统）\n\n当前 Agent 没有任何记忆——每次对话都是独立的。如果用户先问了\"MCP 是什么\"，再问\"它和 REST 有什么区别\"，Agent 不知道\"它\"指的是 MCP。需要加入对话历史管理和上下文压缩。",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第六周（LangGraph）",
+    "chunk_id": 25,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第六周（LangGraph）\n\n目前的 Agent Loop 是手写的 while 循环，状态管理完全靠 messages 列表。LangGraph 会把这个循环变成可视化的状态图，每个节点（搜索/抓取/回答）可以独立配置和观测。我现在手写的 Loop 正好能帮我理解 LangGraph \"为什么要这么设计\"。\n\n---",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "第二周学习复盘",
+    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 八、本周最大收获",
+    "chunk_id": 26,
+    "text": "# 第二周学习复盘：工具调用与单 Agent 雏形 > 八、本周最大收获\n\n如果只能说一句话，我这周最大的收获是：\n\n**Agent 不是一个高深的架构概念，它的核心就是 \"LLM + 工具 + 循环\"。真正的难度不在于让它跑起来，而在于让它稳定地、可控地、可观测地运行。** 工具设计的质量、prompt 的精确度、循环的控制策略、错误的恢复机制——这些\"工程细节\"才是区分 demo 和生产系统的关键。\n\n---\n\n*完成于 2026-03-30*",
+    "path": "week_2/docs/第二周学习复盘.md"
+  },
+  {
+    "doc": "README",
+    "section": "Search Agent — Week 2 Demo > 功能",
+    "chunk_id": 0,
+    "text": "# Search Agent — Week 2 Demo > 功能\n\n基于千问 + DuckDuckGo 的最小搜索 Agent。\n\n- 🔍 网页搜索（DuckDuckGo）\n- 📄 网页内容提取（readability）\n- 🔄 自动多轮工具调用（Agent Loop）\n- 📋 完整 trace 记录\n- ⚠️ 失败兜底（搜索为空/网页超时/格式错误）",
+    "path": "week_2/search_agent/README.md"
+  },
+  {
+    "doc": "README",
+    "section": "Search Agent — Week 2 Demo > 工具设计",
+    "chunk_id": 1,
+    "text": "# Search Agent — Week 2 Demo > 工具设计\n\n| 工具 | 类型 | 说明 |\n|------|------|------|\n| web_search | Data Tool | 搜索网页，返回标题+摘要+URL |\n| fetch_webpage | Data Tool | 提取网页正文内容 |",
+    "path": "week_2/search_agent/README.md"
+  },
+  {
+    "doc": "README",
+    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > Agent 实现层面",
+    "chunk_id": 2,
+    "text": "# Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > Agent 实现层面\n\n（安装和运行命令）\n\n- **Agent Loop 退出条件过于简单**：`agent.py` 中只要 `finish_reason == “stop”` 或无 `tool_calls` 就直接退出循环，没有检查模型是否应该先搜索再回答。实测 7 个 case 中有 3 个（诺贝尔奖、RAG、xyzabc123）模型直接凭已有知识回答，跳过了工具调用。\n- **System Prompt 对工具调用的约束力不足**：Prompt 说”when the user asks a question requiring current information, first use web_search”，但”current information”的界定模糊，模型对于自身训练数据已覆盖的问题倾向于直接回答，导致工具使用率偏低（7 个 case 只有 3 个调用了工具）。\n- **缺少从工具失败到 snippet 回退的引导机制**：当 `fetch_webpage` 连续失败时，Agent 只是继续循环让模型自行决策，没有主动引导”放弃抓取，用已有 snippet 总结回答”。实测 case 3（LangGraph vs CrewAI）因连续遇到 403 耗尽 5 轮次，最终无答案输出。\n- **MAX_TURNS = 5 对多页面比对类问题偏小**：需要搜索 + 多次抓取 + 对比的问题容易因网页抓取失败而耗尽轮次。实测中对比类问题 5 轮调用了 5 次工具仍未完成。\n- **多轮对话的上下文窗口未管理**：messages 列表随工具调用不断累积（每次工具结果最多 3000 字符），没有对历史工具结果做裁剪或摘要，长对话可能逼近或超出模型上下文限制。\n- **工具错误信号未被 Agent 利用**：工具返回了结构化的 `recoverable` / `suggestion` 字段，但 Agent Loop 本身不读取这些字段，完全依赖模型自行解析 JSON 并决定是否重试，降低了错误恢复的可靠性。",
+    "path": "week_2/search_agent/README.md"
+  },
+  {
+    "doc": "README",
+    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > 工具设计层面",
+    "chunk_id": 3,
+    "text": "# Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > 工具设计层面\n\n- **web_search 缺少 query 预处理**：中文 query 直接传给 DuckDuckGo，没有翻译或关键词改写。虽然 tool description 提示”prefer English keywords”，但模型不一定遵守，影响中文问题的搜索质量。\n- **web_search 对无意义查询缺少结果相关性过滤**：DuckDuckGo 对无意义字符串（如 `xyzabc123`）仍可能返回关联词的页面，工具层面没有对结果与原始 query 的相关性做基本过滤，导致”搜索为空”的兜底路径难以稳定触发。\n- **fetch_webpage 缺少 URL 预过滤机制**：已知 Medium、DataCamp 等站点必然返回 403，但工具没有黑名单或预检测，每次无效抓取浪费一轮 Agent 循环。\n- **fetch_webpage 缺少内容类型检测**：没有在下载前通过 HEAD 请求或 Content-Type 判断资源是否为 HTML，可能浪费时间在 PDF、图片等非 HTML 资源上。\n- **工具间缺少协作设计**：`web_search` 和 `fetch_webpage` 完全独立，对于”搜索 + 读取第一条结果”这种高频模式，模型必须分两轮调用，增加了不必要的轮次消耗和延迟。",
+    "path": "week_2/search_agent/README.md"
+  },
+  {
+    "doc": "README",
+    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > Agent 实现",
+    "chunk_id": 4,
+    "text": "# Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > Agent 实现\n\n1. **增强 System Prompt 的工具调用约束**：更明确地区分”常识问答”和”需要搜索验证的问答”，对事实性问题、时效性问题强制要求先搜索，减少模型直接跳过工具的情况。\n2. **在 Agent Loop 中加入 fallback 策略**：当 `fetch_webpage` 连续失败达到阈值时，在下一轮 messages 中注入提示，引导模型基于已有 snippet 给出回答，避免耗尽轮次后无输出。\n3. **适当增大 MAX_TURNS 并加入动态调整**：对需要多步操作的问题（对比类、深度研究类）允许更多轮次；同时在连续失败时提前终止，避免无效循环。\n4. **Agent 层面利用工具返回的错误元数据**：读取工具结果中的 `recoverable` 和 `suggestion` 字段，在 Agent Loop 中做自动重试或策略切换，而不是完全交给模型自由发挥。\n5. **增加上下文窗口管理**：对历史 messages 中的长工具结果做摘要裁剪，防止多轮对话累积超出模型上下文限制。\n6. **提升 Trace 结构化程度**：在 trace 中增加”模型为何未调用工具””工具失败后模型的恢复决策”等结构化字段，便于复盘 Agent 行为。",
+    "path": "week_2/search_agent/README.md"
+  },
+  {
+    "doc": "README",
+    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计",
+    "chunk_id": 5,
+    "text": "# Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计\n\n1. **web_search 增加 query 改写能力**：对中文问题、对比类问题自动生成更适合搜索引擎的英文关键词，而不是完全依赖模型在 prompt 层面的遵从。\n2. **web_search 增加结果相关性基础过滤**：对搜索结果与原始 query 做简单的关键词匹配或相似度判断，过滤明显无关的结果，让”空结果”兜底路径更可靠。\n3. **fetch_webpage 增加 URL 预检测和黑名单**：维护已知反爬站点列表，抓取前先做 HEAD 请求检查 Content-Type 和状态码，快速跳过不可访问的 URL，减少轮次浪费。\n4. **考虑增加组合工具**：提供 `search_and_read` 类型的组合工具，一次调用完成”搜索 + 抓取最相关结果”，减少简单问题的轮次消耗。",
+    "path": "week_2/search_agent/README.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记",
+    "chunk_id": 0,
+    "text": "# Agent Loop 设计笔记\n\n> 第三周产出物\n> 不是代码文档，而是一份经过两周实践后对 Agent 控制循环的设计思考\n\n---",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.1 最简模型",
+    "chunk_id": 1,
+    "text": "# Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.1 最简模型\n\n把所有修饰去掉后，Agent Loop 的本质就是一句话：\n\n**反复问模型\"接下来做什么\"，直到它说\"我做完了\"。**\n\n```\nloop:\n    decision = ask_model(\"接下来做什么？\")\n    if decision == \"done\":\n        return answer\n    else:\n        execute(decision)\n        goto loop\n```\n\n这跟人类的工作方式完全一样：接到一个任务，想一下需要什么信息，去查，拿到信息后判断够不够，不够就再查，够了就输出结果。Agent Loop 就是把这个过程代码化。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.2 但模型不是可靠的决策者",
+    "chunk_id": 2,
+    "text": "# Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.2 但模型不是可靠的决策者\n\n上面的最简模型有一个致命假设：**模型的 decision 总是正确的。** 第二周的实测彻底否定了这个假设：\n\n| 失败类型 | 表现 | 频率 |\n|---------|------|------|\n| 应该做但不做 | 模型跳过搜索直接回答（Case 1/5/7） | 43% |\n| 做了但做不成 | 工具连续失败，模型不知道放弃（Case 3） | 14% |\n| 做完但不停 | 模型可能陷入搜索循环 | 潜在风险 |\n\n所以真实的 Agent Loop 不是\"信任模型的循环\"，而是**\"带安全网的决策循环\"**——在模型每次决策后、执行前和执行后，插入一系列检查和保护措施。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.3 我的理解：Agent Loop = 决策循环 + 三张安全网",
+    "chunk_id": 3,
+    "text": "# Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.3 我的理解：Agent Loop = 决策循环 + 三张安全网\n\n```\n           ┌─────────────────────────────┐\n           │       模型决策循环            │\n           │  (model makes decisions)     │\n           └──────────┬──────────────────┘\n                      │\n        ┌─────────────┼─────────────────┐\n        │             │                 │\n   ┌────┴────┐  ┌────┴────┐  ┌────────┴────────┐\n   │ 安全网 1 │  │ 安全网 2 │  │    安全网 3      │\n   │ 决策审查 │  │ 执行保护 │  │    资源控制      │\n   │         │  │         │  │                  │\n   │ 该做没做？│  │ 做了失败？│  │ 轮次/时间/上下文 │\n   │ → 纠正   │  │ → 降级   │  │ → 强制终止       │\n   └─────────┘  └─────────┘  └──────────────────┘\n```\n\n- **安全网 1（决策审查）**：模型说\"我做完了\"，但你不信——检查它是否跳过了该做的事\n- **安全网 2（执行保护）**：模型做了正确的决策，但执行失败——检测连续失败并降级\n- **安全网 3（资源控制）**：不管决策对不对，到达上限就强制停止——max_turns、context 长度\n\n三张安全网独立运作，解决不同层面的问题。任何一张缺失都会留下盲区。\n\n---",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 核心设计决策：检查放在 stop 分支，而不是每轮都检查",
+    "chunk_id": 4,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 核心设计决策：检查放在 stop 分支，而不是每轮都检查\n\n我选择只在 `finish_reason == \"stop\"` 时检查（模型打算直接回答时），而不是在每轮开头都检查。原因：\n\n| 方案 | 优点 | 缺点 |\n|------|------|------|\n| **每轮开头检查** | 能捕获\"模型在工具调用之间突然决定不搜索了\" | 每轮多一次规则匹配；可能在模型正在使用工具的过程中误干预 |\n| **只在 stop 时检查** ✅ | 只在\"关键时刻\"（模型准备结束时）才介入；不干预正常的工具使用流程 | 不能捕获中途放弃的情况 |\n\n选择后者的理由：搜索 Agent 的典型流程是\"搜索 → 回答\"，模型在搜索和回答之间不会有\"突然放弃\"的情况。唯一需要检查的就是 stop 分支——模型是不是在该搜索的时候直接回答了。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 核心设计决策：纠正最多 1 次",
+    "chunk_id": 5,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 核心设计决策：纠正最多 1 次\n\n为什么不纠正 2 次或无限次？\n\n```\n纠正 0 次：模型跳过工具 → 用户拿到未验证的答案    ← 太危险\n纠正 1 次：模型跳过工具 → 纠正 → 大概率搜索了    ← 平衡点 ✅\n纠正 2 次：纠正后还不搜索 → 再纠正 → 有死循环风险 ← 太激进\n纠正 N 次：几乎一定会死循环                        ← 不可接受\n```\n\n实测数据验证了这个选择：第二周 Case 5 和 7 在纠正 1 次后都成功搜索了。没有出现\"纠正后仍然不搜索\"的情况。如果 1 次纠正不够，说明 prompt 有更深层的问题，继续纠正也没用——应该去改 prompt 而不是加纠正次数。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 周五发现的假阳性问题及修复",
+    "chunk_id": 6,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 周五发现的假阳性问题及修复\n\n假阳性根因：检查逻辑不看对话历史。模型在 Turn 1 搜索后 Turn 2 回答，此时 `should_have_searched()` 仍然返回 True（因为用户问题没变），触发不必要的纠正。\n\n修复：在纠正检查前加一个\"是否已经搜索过\"的前置条件。\n\n这个教训的设计启示：**任何检查机制都需要考虑上下文状态，不能只基于静态输入做判断。** `should_have_searched(user_message)` 是无状态函数——它不知道对话进行到了哪里。要做有状态的判断，必须引入 trace 信息。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级阈值为什么是 2",
+    "chunk_id": 7,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级阈值为什么是 2\n\n| 阈值 | 在 max_turns=6 时的效果 | 适用场景 |\n|------|------------------------|---------|\n| 1 | 1 次失败就降级，剩 5 轮给回答 | 对延迟极敏感的实时场景 |\n| **2** | 2 次失败后降级，剩 3-4 轮给回答 | **通用搜索场景（平衡点）** ✅ |\n| 3 | 3 次失败后降级，只剩 2-3 轮 | 需要尽可能获取完整信息的场景 |\n\n选 2 的推理过程：\n\n- 第二周 Case 3 连续 5 次 fetch_webpage 失败，全部轮次浪费。阈值 2 能在第 3 轮就触发降级，保留 3 轮给模型基于 snippet 回答\n- 阈值 1 太敏感——一次 timeout 或偶发 403 就放弃深度获取，会降低回答质量\n- 阈值 3 在 max_turns=6 时只给降级回答留 2-3 轮，如果降级回答本身需要再搜一次（补充关键词），空间就不够了",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级指令放在 user 角色而不是 system 角色",
+    "chunk_id": 8,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级指令放在 user 角色而不是 system 角色\n\n千问 API 只支持一条 system message 在开头，不能中途插入新的 system message。所以降级指令以 `role: \"user\"` 注入。\n\n但这引出一个微妙问题：模型可能把降级指令理解为\"用户在催我\"而不是\"系统在纠正我\"。解决方式是在指令前面加 `[System Notice]` 前缀，让模型区分来源。\n\n实测中这个方式是有效的——但这是一个脆弱的约定，模型不一定总是尊重。更健壮的方案是用专门的\"系统消息注入机制\"（如果 API 支持中途插入 system message 的话）。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置",
+    "chunk_id": 9,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置\n\n```python\nif is_error:\n    consecutive_errors += 1\nelse:\n    consecutive_errors = 0  # 任何一次成功就重置\n```\n\n替代方案是\"滑动窗口\"（最近 N 次中失败超过 M 次就降级），更精细但也更复杂。对搜索 Agent 来说，\"连续失败\"已经足够——因为搜索 Agent 的工具调用是线性的（搜索 → 抓取 → 搜索 → 抓取），不存在\"成功和失败交替出现\"的常见场景。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.3 控制点 3：资源控制（检查机制 3） > 核心设计决策：第三周只做监控不做裁剪",
+    "chunk_id": 10,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.3 控制点 3：资源控制（检查机制 3） > 核心设计决策：第三周只做监控不做裁剪\n\n```python\nif context_chars > MAX_CONTEXT_CHARS:\n    logger.warning(f\"Context size ({context_chars}) exceeds threshold\")\n    # 不实际裁剪\n```\n\n为什么不直接裁剪？\n\n1. **搜索 Agent 的单次对话不太会溢出**：max_turns=6，每轮 200-1500 tokens，最多 9000 tokens，远低于千问的 128K 窗口\n2. **裁剪逻辑需要仔细设计**：裁掉哪些消息？工具结果能裁吗？纠正指令能裁吗？这些决策在没有充分测试数据之前不应该仓促做\n3. **第五周会专门学上下文管理**：到时候有记忆系统的完整框架，裁剪策略会更合理\n\n这是一个\"知道什么时候不该做\"的设计决策。过早优化不如先监控、积累数据、再决策。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.3 控制点 3：资源控制（检查机制 3） > max_turns 从 5 调到 6 的考量",
+    "chunk_id": 11,
+    "text": "# Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.3 控制点 3：资源控制（检查机制 3） > max_turns 从 5 调到 6 的考量\n\nv1 的 max_turns=5。v2 改为 6，多出的 1 轮是为降级机制预留的：\n\n```\nworst case: 搜索(1) → 抓取失败(2) → 抓取失败(3) → 降级注入(3) → 降级回答(4)\n留 2 轮 buffer: 如果降级回答不够好，还有 2 轮供模型补充搜索\n```\n\n但不能无限加大 max_turns——更多的轮次意味着更高的延迟和成本。6 是一个\"够用但不浪费\"的值。\n\n---",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.1 假阳性纠正的教训",
+    "chunk_id": 12,
+    "text": "# Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.1 假阳性纠正的教训\n\n测试报告中最大的意外不是功能失败，而是**效率问题**——7/10 的 case 被不必要地纠正了。这教会我三件事：\n\n**第一，无状态检查在有状态系统中是危险的。** `should_have_searched()` 是纯函数，只看输入不看上下文。但 Agent Loop 是有状态的——\"模型是否已经搜索过\"是一个随对话进展变化的状态。用无状态检查做有状态判断，假阳性是必然的。\n\n**第二，\"通过率 100%\"可能掩盖效率问题。** 如果我只看通过率就收工了，假阳性问题就永远不会被发现。Trace 数据让我看到了\"正确但低效\"的行为模式。\n\n**第三，修复假阳性比修复漏检更需要克制。** 修复漏检很直觉——加更多规则、更强的约束。修复假阳性则需要**放松**约束——让检查机制在某些条件下\"放行\"。这违反了\"安全第一\"的直觉，需要基于数据而不是感觉来决策。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.2 降级机制未触发说明了什么",
+    "chunk_id": 13,
+    "text": "# Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.2 降级机制未触发说明了什么\n\n0/10 的降级触发率看起来像是\"降级机制没用\"。但实际情况是：\n\n- v1 的 Case 3 因为连续 403 无输出，是**真正需要降级的场景**\n- v2 的 Case 3 在 prompt 层面就解决了（模型不再调 fetch_webpage，直接用 snippet 回答）\n- 这意味着**预防层（prompt）解决了问题，治疗层（降级）没有被需要**\n\n这是好事。最好的安全网是永远不需要接住人的安全网——因为走钢丝的人技术足够好。但安全网仍然必须存在，因为你不能保证每次都不失足。\n\n类比软件工程：数据库的备份恢复机制可能一年用不上一次，但你不会因此取消备份。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.3 Prompt 和代码两层防御的协作关系",
+    "chunk_id": 14,
+    "text": "# Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.3 Prompt 和代码两层防御的协作关系\n\n从 10 个 case 的 trace 数据中，可以清楚地看到两层防御各自的贡献：\n\n| 防御层 | 作用 | 覆盖的 case | 覆盖率 |\n|--------|------|------------|--------|\n| **Prompt 层** | 引导模型在 Turn 1 就做出正确决策 | Case 1/2/3/4/6/8/9/10 | 80% |\n| **代码层（纠正）** | 在 Prompt 不够时兜底 | Case 5/7 | 20% |\n| **代码层（降级）** | 在工具失败时兜底 | 本次未触发 | 0%（但必须存在） |\n\n80/20 法则在这里非常明显。如果只有 Prompt 层，通过率约 80%；加上代码层才到 100%。但代码层不能替代 Prompt 层——如果 Prompt 层只有 50%（v1 的水平），代码层需要兜底 50% 的 case，纠正和降级的负担会大得多，延迟也会高得多。\n\n**最佳策略是：让 Prompt 层尽可能强，让代码层尽可能不需要触发。** 代码层的价值不在于\"经常使用\"，而在于\"关键时刻能兜住\"。\n\n---",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 1：分支-检查-行动",
+    "chunk_id": 15,
+    "text": "# Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 1：分支-检查-行动\n\n经过两周实践，我总结出 Agent Loop 设计的几个通用模式：\n\n```\n每轮循环 {\n    模型决策 → 判断 finish_reason\n    \n    分支 \"stop\" {\n        检查：该做没做？（决策审查）\n        行动：纠正 or 返回\n    }\n    \n    分支 \"tool_calls\" {\n        行动：执行工具\n        检查：连续失败？（执行保护）\n        行动：降级 or 继续\n    }\n    \n    全局检查：资源超限？（资源控制）\n}\n```\n\n关键点：每个分支都有\"检查 → 行动\"的结构，检查不通过时有明确的恢复行动。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 2：检查机制的三要素",
+    "chunk_id": 16,
+    "text": "# Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 2：检查机制的三要素\n\n每个检查机制都需要定义三个要素：\n\n| 要素 | 检查机制 1（纠正） | 检查机制 2（降级） | 检查机制 3（资源） |\n|------|-------------------|-------------------|-------------------|\n| **触发条件** | stop + 未搜索 + 规则匹配 | 连续失败 ≥ 2 | 上下文 > 阈值 |\n| **恢复行动** | 注入纠正消息 + continue | 注入降级消息 | 裁剪 messages |\n| **防护限制** | 最多 1 次 | 最多 1 次 | 每轮检查 |\n\n\"防护限制\"是防止检查机制本身陷入循环的关键。没有防护限制的检查机制是危险的——它可能把 Agent 拖入\"检查→恢复→再检查→再恢复\"的无限循环。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 3：有状态检查 vs 无状态检查",
+    "chunk_id": 17,
+    "text": "# Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 3：有状态检查 vs 无状态检查\n\n| 类型 | 例子 | 优点 | 缺点 |\n|------|------|------|------|\n| **无状态检查** | should_have_searched(user_msg) | 简单、可单独测试、无副作用 | 不考虑对话进展，可能假阳性 |\n| **有状态检查** | already_searched（看 trace） | 准确、考虑上下文 | 依赖外部状态、更难测试 |\n\n最佳实践：**先用无状态检查做第一道过滤，再用有状态检查做精确判断。**\n\n```python\n# 第一道：无状态过滤（快，但可能假阳性）\nif should_have_searched(user_message):\n    # 第二道：有状态确认（准确）\n    if not already_searched_in_trace(trace):\n        inject_correction()\n```\n\n这就是修复假阳性后的逻辑结构。两道检查的组合比任何单独一道都好。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 4：Trace 驱动的迭代优化",
+    "chunk_id": 18,
+    "text": "# Agent Loop 设计笔记 > 四、Agent Loop 的设计模式总结 > 模式 4：Trace 驱动的迭代优化\n\n```\nv1: 写代码 → 跑 → 看 print 日志 → 凭感觉改\nv2: 写代码 → 跑 → 分析 trace → 用数据改\n```\n\nTrace 改变了优化方式。没有 trace 时，发现问题靠人工观察，改进靠直觉。有了 trace，发现问题靠自动分析（如统计纠正触发率），改进靠数据（如假阳性率从 57% 降到 0%）。\n\n**Agent 系统的可改进性取决于它的可观测性。** 不能观测的系统就不能被可靠地改进。\n\n---",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q1：规则引擎的上限在哪里？",
+    "chunk_id": 19,
+    "text": "# Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q1：规则引擎的上限在哪里？\n\n`should_have_searched()` 是基于关键词和正则的启发式规则。它在 28 条测试上达到了 100% 准确率，但规则引擎的根本局限是：**它无法理解语义。**\n\n例如\"帮我解释一下这段代码是什么意思\"——包含\"什么意思\"（规则匹配→搜索），但实际上是代码解释（不该搜索）。这种语义冲突只能靠 LLM 来判断，不能靠关键词匹配。\n\n后续方向：第十周（评测）时用更大的测试集（50-100 条）压测规则引擎的边界，找到必须升级到 LLM 判断的阈值。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q2：降级后的回答质量如何保证？",
+    "chunk_id": 20,
+    "text": "# Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q2：降级后的回答质量如何保证？\n\n当前降级机制告诉模型\"用已有的 snippet 回答\"，但 snippet 质量取决于搜索引擎的返回——有些 snippet 信息量很低（只有一两句话）。如何判断\"snippet 够不够回答这个问题\"？不够时怎么办？\n\n后续方向：可能需要在降级指令中加入\"如果摘要信息不足以回答，请诚实告知用户而不是编造内容\"的约束。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q3：多 Agent 场景下 Loop 怎么嵌套？",
+    "chunk_id": 21,
+    "text": "# Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q3：多 Agent 场景下 Loop 怎么嵌套？\n\n第八周会学多 Agent。如果一个 orchestrator agent 调用子 agent，子 agent 自己也有 loop，那纠正和降级机制在哪一层生效？子 agent 的降级是否应该通知上层 agent？\n\n这些跨 agent 的控制流问题，单 agent 场景下无法回答。",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "Agent_Loop_设计笔记",
+    "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q4：如何做到真正的\"在线学习\"？",
+    "chunk_id": 22,
+    "text": "# Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q4：如何做到真正的\"在线学习\"？\n\n当前的纠正和降级都是预设策略。理想情况下，Agent 应该从每次交互中学习：如果某类问题总是被纠正，就自动调整\"何时该搜索\"的判断标准；如果某个域名总是 403，就自动加入黑名单。\n\n后续方向：第五周的记忆系统 + 第十周的评测，可能是实现这种在线学习的基础。\n\n---\n\n*完成于 2026-04-05*",
+    "path": "week_3/docs/Agent_Loop_设计笔记.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环",
+    "chunk_id": 0,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环\n\n> **周期**：2026-03-31（周一）— 2026-04-05（周六）\n> **目标**：掌握 prompt 约束、structured output、Agent Loop 控制策略，将搜索 Agent 从\"能跑通\"升级为\"受控运行\"\n> **产出**：搜索 Agent v2.0 + Agent Loop 设计笔记\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周一 — 概念与文档阅读",
+    "chunk_id": 1,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周一 — 概念与文档阅读\n\n带着第二周暴露的三个核心问题（模型跳过工具、输出不可控、连续失败无降级）去读文档，聚焦三条线：\n\n| 线索 | 阅读内容 | 关键收获 |\n|------|---------|---------|\n| System Prompt 设计 | Anthropic《Effective Context Engineering》 | \"正确高度\"原则：太具体则脆弱，太模糊则失控；用 examples 代替规则堆砌 |\n| Structured Output | OpenAI Structured Outputs 指南 + 千问百炼文档 | json_object 只保证合法 JSON，json_schema + strict 才保证结构；千问思考模式不支持结构化输出 |\n| Agent Loop 控制 | Anthropic《Building Effective Agents》+ OpenAI《Practical Guide》 | guardrails 设计、failure thresholds、human-in-the-loop 触发条件 |\n\n当天给自己提了四个设计问题，作为本周的核心思考框架：\n1. 怎么重写 system prompt 让模型不跳过工具？\n2. 千问的 structured output 支持到什么程度？\n3. \"模型应该用工具但没用\"的检测放在哪一层？\n4. 连续失败的降级策略写在 prompt 里还是代码中？\n\n产出：四个问题的详细参考答案笔记。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周二 — 设计方案制定（概念日第二天）",
+    "chunk_id": 2,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周二 — 设计方案制定（概念日第二天）\n\n不写代码，但产出可以直接指导编码的三份设计草稿：\n\n**任务一：System Prompt 重写。** 核心设计决策是\"翻转默认方向\"——旧 prompt 说\"可以使用搜索工具\"（许可语气），新 prompt 说\"必须先搜索，以下情况例外\"（默认搜索）。同时写了 3 个 few-shot examples，分别覆盖事实查询（搜索）、技术概念（搜索）、创意写作（不搜索）。完成后对第二周 7 个测试用例做了逐案预期分析。\n\n**任务二：Structured Output Schema 设计。** 分析了三种架构方案——纯 tool calling、纯 response_format、混合方案。结论是第三周采用混合方案（方案 C）：主流程用 tool calling，可选的格式化步骤用 response_format。同时设计了 AgentTrace 数据结构，让 Agent 的每一步决策可追踪。\n\n**任务三：Agent Loop 升级方案。** 画了新旧 Loop 对比流程图，设计了三个检查机制的具体参数：`should_have_searched()` 规则引擎（5 条排除规则 + 6 条搜索规则）、`MAX_CONSECUTIVE_ERRORS = 2`、上下文监控（简化版只警告）。\n\n产出：三份设计文档，共约 8000 字。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周三 — 跑通验证实验",
+    "chunk_id": 3,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周三 — 跑通验证实验\n\n在写正式升级代码之前，先用最小脚本验证关键技术假设。这是本周最重要的一天之一——因为实验结果直接推翻了一个设计假设。\n\n**实验一：json_object 模式。** 4 个子测试。核心发现：千问强制要求 messages 中包含 \"json\" 关键词，否则 400 报错。这是文档里没有明确说的限制。\n\n**实验二：json_schema 模式。** 4 个子测试。好消息：`strict: True` 非常可靠，enum 约束严格生效，即使 prompt 试图诱导也不会违反。\n\n**实验三：tools + response_format 互斥性。** 这是最关键的实验。7 个子测试，得出结论：\n\n| 组合 | 结果 |\n|------|------|\n| tools + json_object | 400 报错（\"json\" 关键词限制） |\n| tools + json_schema | **不报错，但 json_schema 吃掉了 tools！模型不调用工具，直接返回 JSON** |\n\n**这个发现直接推翻了周二的方案 C**（同时传 tools + response_format）。修正方案：主流程只传 tools；格式化步骤用**单独请求** + json_schema。绝不在同一个请求中同时使用。\n\n这个经验印证了一个重要原则：**API 的实际行为必须用实验验证，不能只看文档。** 文档说两者都支持，但没有说同时使用时的优先级规则。\n\n产出：实验结论文档 + 修正后的技术决策。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周四 — 实现完整代码升级",
+    "chunk_id": 4,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周四 — 实现完整代码升级\n\n基于三天的设计和验证，正式改代码。按模块逐步实现：\n\n| 序号 | 模块 | 内容 | 耗时 |\n|------|------|------|------|\n| 1 | config.py | 新版 System Prompt + 所有常量 | 30min |\n| 2 | trace.py | AgentTrace / TurnTrace / ToolCallTrace 三层数据结构 | 30min |\n| 3 | checks.py | should_have_searched() 规则引擎 | 45min |\n| 4 | test_checks.py | 28 条单元测试 | 30min |\n| 5 | agent.py | Agent Loop 核心升级（三个检查机制） | 2h |\n| 6 | tools.py | URL 黑名单预过滤 | 30min |\n| 7 | main.py | 三种运行模式 + trace 集成 | 45min |\n\n关键实现细节：\n\n- agent.py 严格遵循周三实验结论：`client.chat.completions.create()` 只传 `tools`，不传 `response_format`\n- `format_answer_as_json()` 作为独立函数，用单独的 API 请求 + json_schema 实现格式化\n- `should_have_searched()` 单元测试 28/28 通过后才集成到 Agent Loop\n\n**跑完测试结果：10/10 通过（100%）。** 第二周失败的 Case 1/5/7 全部修复，Case 3 不再因为连续 403 而失败。\n\n产出：完整的 search_agent v2.0 代码项目（8 个文件）+ test_report.json。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周五 — 分析测试报告 + 修复问题",
+    "chunk_id": 5,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周五 — 分析测试报告 + 修复问题\n\n仔细分析 test_report.json，发现了一个重要问题：\n\n**纠正机制假阳性率 57%。** 10 个 case 中 7 个触发了纠正，但其中 4 个是假阳性——模型在 Turn 1 已经搜索过了，Turn 2 准备回答时被误判为\"跳过工具\"。\n\n根因分析：`should_have_searched()` 只看用户原始问题，不看对话历史中是否已经搜索过。修复方案是在纠正检查中增加前置条件：\n\n```python\nalready_searched = any(\n    tc.tool_name == \"web_search\" and tc.result_success\n    for t in trace.turns\n    for tc in t.tool_calls\n)\n\nif (not correction_injected\n    and not already_searched  # ← 新增：已搜索过就不纠正\n    and should_have_searched(user_message)):\n```\n\n修复后预期：纠正触发率从 70% 降到 20%，平均轮次从 3.5 降到 2.5，平均耗时从 25.7s 降到 15-18s。\n\n还发现降级机制（fallback）0/10 触发——因为 Case 3 在 v2 中模型直接用 snippet 回答了，根本没调 fetch_webpage。这是好事（prompt 层面解决了问题），但也意味着降级机制需要额外的测试用例来验证。\n\n产出：测试报告分析文档 + 假阳性修复方案。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 1：Prompt 优化和代码检查是互补关系，不是替代关系",
+    "chunk_id": 6,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 1：Prompt 优化和代码检查是互补关系，不是替代关系\n\n撰写本复盘文档和《Agent Loop 设计笔记》。整理代码仓库。\n\n---\n\n这是本周最核心的认知。第二周我把 Agent 的问题归因为\"prompt 不好\"，以为只要优化 prompt 就够了。第三周的实践证明：\n\n- **Prompt 解决了 75% 的问题**：8 个需要搜索的 case 中，6 个在 Turn 1 就主动调用了工具。新版 prompt 的\"默认搜索\"策略确实有效。\n- **但 25% 的 case 仍然需要代码兜底**：Case 5（RAG）和 Case 7（xyzabc123）模型就是跳过了工具，prompt 再怎么写都拦不住——因为模型\"非常确信自己知道答案\"。\n\n这两层是\"预防 + 检测\"的关系。Prompt 是预防层，降低问题发生的概率；代码检查是检测层，捕获漏网之鱼。两层必须同时存在。\n\n类比：安全领域的\"纵深防御\"——防火墙（prompt）减少攻击面，入侵检测（代码检查）发现漏过的威胁。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 2：API 的实际行为必须用实验验证",
+    "chunk_id": 7,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 2：API 的实际行为必须用实验验证\n\n周三的 tools + response_format 互斥性实验是本周最有价值的发现。文档说千问同时支持两者，但没有说同时使用时的行为。如果我跳过实验直接按周二的方案 C 写代码，会在周四浪费大量时间 debug 一个\"工具怎么都不被调用\"的问题。\n\n这个教训适用于所有 LLM API 开发：**文档告诉你\"支持什么\"，但不会告诉你\"组合使用时的优先级\"。** 唯一可靠的方法是写最小脚本验证。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 3：假阳性比漏检更容易被忽视",
+    "chunk_id": 8,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 3：假阳性比漏检更容易被忽视\n\n第二周我只关注\"模型跳过工具\"（漏检问题），于是设计了纠正机制。但第三周测试报告显示，57% 的纠正是假阳性——模型已经搜索过了，纠正反而导致重复搜索、浪费轮次、增加延迟。\n\n假阳性的隐蔽性在于：**它不导致功能错误，只导致效率下降**。如果我只看\"通过率 100%\"就满意了，不分析 trace 细节，就不会发现这个问题。这说明**评测不能只看通过率，还要看代价**（轮次、延迟、额外 API 调用）。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 4：Agent 控制循环的复杂度呈指数增长",
+    "chunk_id": 9,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 4：Agent 控制循环的复杂度呈指数增长\n\n第二周的 Agent Loop 只有两个分支（stop / tool_calls），逻辑清晰。第三周加了三个检查机制后，分支变成了：\n\n```\nstop → 已搜索过？ → 是 → 正常返回\n                    → 否 → should_have_searched? → 是 → 已纠正过？ → ...\n                                                  → 否 → 正常返回\ntool_calls → 执行 → 失败？ → 连续N次？ → 已降级过？ → ...\n```\n\n每新增一个检查机制，分支数接近翻倍。这让我理解了为什么第六周要学 LangGraph——手写的 while 循环在 3-4 个检查机制后就变得难以维护。状态图是管理这种复杂度的更好工具。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 5：结构化 Trace 的价值远超预期",
+    "chunk_id": 10,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 5：结构化 Trace 的价值远超预期\n\n第二周靠 print 调试，效率很低——看完日志还要人脑重建\"模型在第几轮做了什么决策\"。第三周有了 AgentTrace 后：\n\n- **调试时间缩短 80%**：一个 JSON 就能看到完整决策链，不用翻日志\n- **假阳性问题是 trace 暴露的**：如果没有 `correction_triggered` 字段，我根本不知道 70% 的 case 被纠正了\n- **评测自动化成为可能**：可以程序化地检查 `searched == expect_search`，不用人工判断\n\nTrace 不是\"锦上添花\"的功能，它是 Agent 工程化的基础设施。\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
+    "chunk_id": 11,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录\n\n| # | 现象 | 原因 | 解法 | 归类 |\n|---|------|------|------|------|\n| 1 | json_object 模式 400 报错 | 千问强制要求 messages 中包含 \"json\" 关键词 | 在 system prompt 中加入 \"JSON\" 一词 | API 限制 |\n| 2 | tools + json_schema 时模型不调用工具 | json_schema 优先级高于 tools，覆盖了工具调用行为 | 两者分开用：主流程只传 tools，格式化用单独请求 | API 行为 |\n| 3 | 纠正机制假阳性率 57% | should_have_searched() 不看对话历史，模型搜索后回答时被误判 | 增加 already_searched 前置检查 | 设计缺陷 |\n| 4 | Case 7（xyzabc123）耗时 40s / 6 轮 | 模型过度认真搜索无意义字符串，反复尝试不同关键词和 URL | 可在 prompt 中增加\"2 轮搜索后无结果即可结论\"的引导 | 效率优化 |\n| 5 | 降级机制 0 次触发 | Case 3 在 v2 中模型没调 fetch_webpage，直接用 snippet 回答 | 好事，但需构造专门 case 验证降级机制 | 测试覆盖 |\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 四、v1 → v2 量化对比 > 功能指标",
+    "chunk_id": 12,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 四、v1 → v2 量化对比 > 功能指标\n\n| 指标 | v1（第二周） | v2（修复前） | v2（修复后预期） |\n|------|:---:|:---:|:---:|\n| 测试用例数 | 7 | 10 | 10 |\n| 通过率 | 4/7 (57%) | 10/10 (100%) | 10/10 (100%) |\n| 工具使用准确率 | 4/7 (57%) | 10/10 (100%) | 10/10 (100%) |\n| 有回答率 | 6/7 (86%) | 10/10 (100%) | 10/10 (100%) |",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 四、v1 → v2 量化对比 > 效率指标",
+    "chunk_id": 13,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 四、v1 → v2 量化对比 > 效率指标\n\n| 指标 | v1 | v2（修复前） | v2（修复后预期） |\n|------|:---:|:---:|:---:|\n| 平均轮次 | 3.0 | 3.5 | ~2.5 |\n| 平均耗时 | — | 25.7s | ~16s |\n| 纠正触发率 | — | 70% (7/10) | ~20% (2/10) |\n| 降级触发率 | — | 0% | 0%（需专门测试） |",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 四、v1 → v2 量化对比 > 代码规模",
+    "chunk_id": 14,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 四、v1 → v2 量化对比 > 代码规模\n\n| 指标 | v1 | v2 |\n|------|:---:|:---:|\n| 文件数 | 4 | 8 |\n| 核心代码行数 | ~250 | ~600 |\n| 新增模块 | — | checks.py, trace.py |\n| 单元测试 | 0 | 28 条 |\n| 配置常量 | 3 | 10 |\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 五、本周代码架构",
+    "chunk_id": 15,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 五、本周代码架构\n\n```\nsearch_agent/ v2.0\n├── config.py         → 配置中心：API 客户端、模型、System Prompt、所有常量\n├── tools.py          → 工具实现 + schema 定义 + 注册表 + URL 黑名单\n├── agent.py          → Agent Loop 核心（三大检查机制 + trace 集成）\n├── checks.py         → 规则引擎：should_have_searched()\n├── trace.py          → 结构化追踪：AgentTrace / TurnTrace / ToolCallTrace\n├── main.py           → 入口：交互 / 单查 / 测试 三种模式\n├── test_checks.py    → 规则引擎单元测试（28 条）\n└── test_report.json  → 测试报告（含完整 trace）\n```",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 五、本周代码架构 > 模块依赖关系",
+    "chunk_id": 16,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 五、本周代码架构 > 模块依赖关系\n\n```\nmain.py\n  ├── agent.py\n  │     ├── config.py    （读取配置）\n  │     ├── tools.py     （执行工具）\n  │     ├── checks.py    （规则检查）\n  │     └── trace.py     （记录追踪）\n  └── agent.format_answer_as_json()  （可选格式化）\n```\n\n设计原则：每个模块职责单一，改任何一个模块不需要改其他模块。新增工具只需改 tools.py（三步：写函数、加定义、注册），不需要动 agent.py。\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第四周（RAG）",
+    "chunk_id": 17,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第四周（RAG）\n\n搜索 Agent 的 `web_search → fetch_webpage → 基于内容回答` 模式和 RAG 的 `检索 → 获取文档 → 基于文档回答` 在逻辑上几乎同构。区别在于：\n\n| 维度 | 搜索 Agent | RAG |\n|------|-----------|-----|\n| 检索方式 | 关键词搜索（DuckDuckGo） | 向量相似度搜索（embedding） |\n| 数据源 | 互联网（实时） | 预处理的文档库（离线） |\n| 内容获取 | HTTP 抓取（不稳定） | 本地读取（稳定） |\n| 引用约束 | snippet + URL | chunk 位置 + 文档名 |\n\n可以复用的：Agent Loop 核心框架、trace 记录机制、should_have_searched 规则引擎（改为 should_have_retrieved）、错误处理模式。\n\n需要新增的：embedding 生成和存储、向量检索工具、chunk 管理、rerank 逻辑。",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第五周（记忆系统）",
+    "chunk_id": 18,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第五周（记忆系统）\n\n本周的上下文监控（检查机制 3）是简化版——只做警告不实际裁剪。第五周需要实现真正的上下文管理：\n\n- 短期记忆：对话历史裁剪策略（保留 system + 最近 K 轮）\n- 长期记忆：用户偏好（如\"总是用中文回答\"）、已确认的事实\n- 上下文装配：每轮调用前动态组装 messages，而不是简单追加",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第六周（LangGraph）",
+    "chunk_id": 19,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第六周（LangGraph）\n\n本周最大的感受是手写 while 循环在 3 个检查机制后就变得复杂。agent.py 的主循环有 150+ 行，嵌套层级达到 4-5 层。LangGraph 的状态图可以把\"纠正\"\"降级\"\"正常回答\"拆成独立节点，每个节点的逻辑更简单，整体流程更可视化。\n\n具体来说，本周的 Agent Loop 可以拆成这些节点：\n- `route`: 判断 finish_reason\n- `execute_tools`: 执行工具调用\n- `check_should_search`: 规则检查\n- `inject_correction`: 注入纠正\n- `check_consecutive_errors`: 失败计数\n- `inject_fallback`: 注入降级\n- `return_answer`: 返回回答\n\n每个节点不超过 20 行代码，但组合起来实现了完整的控制逻辑。\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 七、Anthropic vs OpenAI/千问的新发现 > Structured Output 差异",
+    "chunk_id": 20,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 七、Anthropic vs OpenAI/千问的新发现 > Structured Output 差异\n\n| 维度 | OpenAI | 千问（OpenAI 兼容） | 影响 |\n|------|--------|------|------|\n| json_object 模式 | 只要设 response_format 即可 | **强制要求 messages 含 \"json\" 关键词** | 需在 prompt 中显式提及 JSON |\n| json_schema strict | 100% schema 遵循 | 同样严格 ✅ | 可靠 |\n| tools + response_format | 行为未知（未测试） | **json_schema 覆盖 tools，模型不调工具** | 绝不能同时使用 |\n| 思考模式 + structured output | N/A | 不支持同时使用 | 需二选一 |",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 七、Anthropic vs OpenAI/千问的新发现 > 通用的、与 LLM 无关的设计原则",
+    "chunk_id": 21,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 七、Anthropic vs OpenAI/千问的新发现 > 通用的、与 LLM 无关的设计原则\n\n本周新增的跨模型通用认知（加上第二周的）：\n\n- **控制循环的\"纠正-降级\"双机制**：适用于任何 Agent 框架\n- **规则引擎做第一道检测**：成本为零，准确率 75-85%，足以覆盖大多数场景\n- **Trace 是 Agent 工程的基础设施**：不是可选的 debug 工具\n- **API 组合行为必须实验验证**：文档不会告诉你互斥性和优先级\n- **评测不能只看通过率，还要看代价**：轮次、延迟、API 调用数都是成本\n\n---",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "第三周学习复盘",
+    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 八、本周最大收获",
+    "chunk_id": 22,
+    "text": "# 第三周学习复盘：提示词、结构化输出与控制循环 > 八、本周最大收获\n\n如果只能说一句话：\n\n**Agent 的\"受控运行\"不是靠单一技术手段实现的，而是靠多层防御的协同——Prompt 预防、规则检测、代码降级、结构化追踪——每一层解决不同的问题，缺少任何一层都会留下盲区。** 这周让我从\"能让 Agent 跑起来\"真正进阶到了\"能让 Agent 可控地运行并知道它在做什么\"。\n\n---\n\n*完成于 2026-04-05*",
+    "path": "week_3/docs/第三周学习复盘.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 实验一：json_object 模式",
+    "chunk_id": 0,
+    "text": "# 第三周周三实验结论 > 实验一：json_object 模式\n\n| 测试 | 结果 | 说明 |\n|------|------|------|\n| 有结构描述的 system prompt | ✅ | 输出完全按描述的结构返回，keys = [answer, confidence, sources] |\n| 最简描述（只说\"返回 JSON\"） | ✅ | JSON 合法，但结构是模型自己决定的，keys 不可预测 |\n| system prompt 完全不提 JSON | ❌ 400 报错 | **千问强制要求 messages 中包含 \"json\" 关键词** |\n| 中文 + 嵌套结构 | ✅ | 嵌套结构正常，中文编码无问题 |\n\n**结论：**\n- `json_object` 模式**可用但不可控** — 能保证输出是合法 JSON，但无法约束具体结构\n- **硬性限制**：messages 中必须包含 \"json\" 一词，否则 400 报错\n- 想要稳定的字段结构，必须在 system prompt 中明确描述，但即使描述了也无法 100% 保证遵循\n- 适合\"只要是 JSON 就行\"的场景，不适合需要严格 schema 的场景\n\n---",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 实验二：json_schema 模式（strict: True）",
+    "chunk_id": 1,
+    "text": "# 第三周周三实验结论 > 实验二：json_schema 模式（strict: True）\n\n| 测试 | 结果 | 说明 |\n|------|------|------|\n| 基础 schema (answer/sources/confidence) | ✅ | 所有 required 字段齐全，enum 值合法 |\n| 中文内容 | ✅ | 中文在 JSON 中编码完全正常 |\n| 嵌套 schema (points 数组 + importance enum) | ✅ | 嵌套对象的 enum 也被严格约束，无多余字段 |\n| enum 压力测试（诱导非法值） | ✅ | confidence 仍然返回 \"high\"，没有被诱导成 \"very high\" |\n\n**结论：**\n- `json_schema` + `strict: True` **非常可靠**\n- enum 约束严格生效，即使 prompt 试图诱导也不会违反\n- required 字段 100% 存在，additionalProperties: false 也被遵守\n- 中文内容无任何编码问题\n- **这是周四实现 structured output 的首选方案**\n\n---",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键）",
+    "chunk_id": 2,
+    "text": "# 第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键）\n\n| 测试 | tools | response_format | 结果 | 行为 |\n|------|-------|----------------|------|------|\n| A. 基线 | ✅ | 无 | ✅ | 正常调用工具 |\n| B. 基线 | 无 | json_object | ❌ 400 | messages 没有 \"json\" 关键词 |\n| C. 两者 | ✅ | json_object | ❌ 400 | 同样的 \"json\" 关键词限制 |\n| D. 两者 | ✅ | json_object | ❌ 400 | 同上 |\n| E. 两者 | ✅ | json_schema | ✅ | **json_schema 吃掉了 tools！模型不调用工具，直接返回 JSON** |\n| F. 完整循环 | ✅ | json_schema | ✅ | 同 E — 模型跳过工具，直接 JSON 回答 |\n| G. 完整循环基线 | ✅ | 无 | ✅ | 正常调用工具，最终回答是纯文本 |\n\n**关键发现：**",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > tools + json_object → 400 报错（需要 messages 含 \"json\"）",
+    "chunk_id": 3,
+    "text": "# 第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > tools + json_object → 400 报错（需要 messages 含 \"json\"）\n\n这是 json_object 模式的固有限制，跟 tools 无关。如果在 system prompt 中加入 \"json\" 可以绕过，但仍无法控制结构。",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > tools + json_schema → 不报错，但 response_format 优先级高于 tools",
+    "chunk_id": 4,
+    "text": "# 第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > tools + json_schema → 不报错，但 response_format 优先级高于 tools\n\n**这是最重要的发现：当同时传 tools 和 json_schema 时，模型不会调用工具，而是直接输出符合 schema 的 JSON。** tools 的定义虽然被接受（不报错），但完全被忽略。",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > 对方案 C 的影响",
+    "chunk_id": 5,
+    "text": "# 第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > 对方案 C 的影响\n\n**方案 C（同时传 tools + response_format）不可行。** 两者互斥 — 不是 API 层面报错的互斥，而是行为层面的互斥：json_schema 会覆盖 tools 的行为，导致模型永远不调用工具。\n\n---",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "实验结论",
+    "section": "第三周周三实验结论 > 周四改代码的技术决策",
+    "chunk_id": 6,
+    "text": "# 第三周周三实验结论 > 周四改代码的技术决策\n\n基于以上实验，推荐的实现策略：\n\n1. **工具调用阶段**：只传 `tools`，不传 `response_format`，让模型正常选择和调用工具\n2. **最终回答阶段**：当模型决定给出最终回答时（finish_reason == \"stop\"），发起**第二次请求**，传入 `response_format=json_schema`，将自由文本回答格式化为结构化 JSON\n3. 或者，在 Agent Loop 的最后一步，用 system prompt 约束 + `json_schema` 做一次\"格式化调用\"\n\n**不要试图在同一个请求中同时使用 tools 和 response_format。**",
+    "path": "week_3/exercises/实验结论.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第四 + 五周整合设计：Agentic RAG + 记忆系统",
+    "chunk_id": 0,
+    "text": "# 第四 + 五周整合设计：Agentic RAG + 记忆系统\n\n> **日期**：2026-05-19（周二，第五周）\n> **范围**：本周内同时实现 **第四周 RAG**（跳过后补做）+ **第五周记忆系统**。\n> **定位**：周四起编码的直接依据；周三验证实验待测清单见文末。\n> **基座**：第三周 search_agent v2.0（`web_search` + `fetch_webpage`，手写 Agent Loop + trace + 规则引擎）。\n> **目标版本**：search_agent v3.0。\n\n---",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第四 + 五周整合设计：Agentic RAG + 记忆系统 > 0. 整体思路：为什么 RAG 先做、记忆后做",
+    "chunk_id": 1,
+    "text": "# 第四 + 五周整合设计：Agentic RAG + 记忆系统 > 0. 整体思路：为什么 RAG 先做、记忆后做\n\n两周内容不是并列堆叠，而是**地基与上层**的关系：\n\n```\n第四周 RAG  →  造出「向量检索器」(retriever)\n                        │\n                        ▼\n第五周记忆  →  长期记忆的「语义召回」直接复用这个 retriever\n```\n\n上一版文档里标 ⚠️ 的两个缺口（无 embedding 检索器、无引用约束），在实现 RAG 后自动消失。所以先做 RAG 不是绕路，而是给记忆系统铺好检索底座。\n\n**关于 RAG 的定位（贴合 2026 主流）**：本周做的是 **agentic RAG**，不是 2023 的朴素 RAG。区别在于——检索是 Agent Loop 里**由规则决定是否触发**的一个工具（`should_have_retrieved`），而不是\"无脑 retrieve-then-generate\"的固定管线。这样能直接复用 v2.0 的循环、trace 和规则引擎，也符合\"RAG 下沉为 agent 按需调用的一个工具\"的行业方向。\n\n**何时该用 RAG vs 直接塞全文（重要认知）**：小语料（几百页以内）可以直接塞进长上下文，无需检索；只有当语料大到塞不下、或需要权限控制/成本控制/可追溯引用时，RAG 才有价值。本周用本地技术笔记做语料，体量小，所以做 RAG 的目的是**学机制**，不是因为非用不可——这一点要在《RAG 失败模式记录》里写清楚。\n\n---",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking",
+    "chunk_id": 2,
+    "text": "# 第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking\n\n**核心决策：先把语料和切块策略定下来，这是检索质量的源头。**\n\n- **语料**：用你自己的技术笔记 / 项目设计文档（如前几周的复盘、Tool 设计规范、Agent Loop 笔记）。这样追问时你能一眼判断召回对不对。\n- **Chunking 策略**：起步用「固定大小 + 重叠」（如 500 token / 重叠 50），但优先考虑**按结构切**（按 markdown 标题、段落），因为你的笔记本身结构化程度高，按标题切的语义完整性远好于按字数硬切。\n- **每个 chunk 存的元数据**：`{\"doc\": 文件名, \"section\": 标题路径, \"chunk_id\": 序号, \"text\": 正文}`——`section` 和 `chunk_id` 是后面\"引用约束\"的来源字段。\n\n> 失败模式预警①「召回不准」：很多时候根因在 chunking——切得太碎丢上下文，切得太大稀释语义。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第一部分：第四周 RAG（地基） > RAG-2：Embedding 与向量存储",
+    "chunk_id": 3,
+    "text": "# 第一部分：第四周 RAG（地基） > RAG-2：Embedding 与向量存储\n\n**核心决策：用千问的 embedding API + 一个最小向量存储。**\n\n- **Embedding**：用千问/DashScope 的 text-embedding 模型（与现有 OpenAI 兼容客户端同源，复用 `config.py` 的 client）。\n- **向量存储**：学习阶段不必上重型向量库。两个起步选项——\n  - 最轻：numpy 存全部向量，查询时算余弦相似度 top-k（语料小，够用，零依赖）\n  - 稍正式：FAISS 或 Chroma（为第六周接 LangGraph 做准备）\n- **离线预计算**：摄入时一次性算好所有 chunk 的 embedding 并落盘，查询时只算 query embedding。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第一部分：第四周 RAG（地基） > RAG-3：检索工具 + 引用约束",
+    "chunk_id": 4,
+    "text": "# 第一部分：第四周 RAG（地基） > RAG-3：检索工具 + 引用约束\n\n**核心决策：把检索做成 Agent Loop 里的一个工具 `retrieve_documents`，强制带引用。**\n\n- **工具签名**：`retrieve_documents(query, top_k=5) → [{text, doc, section, chunk_id, score}]`\n- **引用约束**：在 system prompt 里强制要求——回答中每个事实性陈述必须标注来源 `[doc#section]`。这是第四周 roadmap 明确的\"回答里强制带引用位置\"。\n- **复用 v2.0**：`should_have_searched` 改造为 `should_have_retrieved`（规则引擎判断\"该不该查本地库\"），其余 Agent Loop、trace、错误处理全部复用。\n- **追问再检索**：用户追问时支持基于新问题再次 `retrieve_documents`——这天然就是 agentic 的（循环里再调一次工具），v2.0 的循环已经支持。\n\n> 失败模式预警②「引用错位」：模型可能把 A chunk 的内容标成 B 的来源。需在评测时逐条核对 `引用的 chunk_id` 是否真含该事实。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第一部分：第四周 RAG（地基） > RAG-4：为什么只检索不够（rerank / 引用约束）",
+    "chunk_id": 5,
+    "text": "# 第一部分：第四周 RAG（地基） > RAG-4：为什么只检索不够（rerank / 引用约束）\n\n- **rerank（可选）**：top-k 向量召回的排序未必准，召回 10 条后用更强的相关性判断重排取前 3。学习阶段可先跳过，但要在文档里记下\"什么时候需要它\"。\n- **过度总结问题**：模型倾向把多个 chunk 揉成一段流畅但失真的总结。约束方式——要求回答**分点对应来源**，而非自由叙述。\n\n> 失败模式预警③「过度总结」：这是 roadmap 点名的第三个 RAG 失败模式，对应约束就是引用粒度。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第一部分：第四周 RAG（地基） > 第四周产出物",
+    "chunk_id": 6,
+    "text": "# 第一部分：第四周 RAG（地基） > 第四周产出物\n\n1. 最小 agentic RAG Agent（本地文档问答 + 强制引用 + 追问再检索）\n2. **《RAG 失败模式记录》**：召回不准 / 引用错位 / 过度总结，各记现象 + 根因 + 对策（沿用你第三周踩坑表的格式）\n\n---",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 设计一：短期记忆 —— 对话历史裁剪",
+    "chunk_id": 7,
+    "text": "# 第二部分：第五周记忆系统（上层） > 设计一：短期记忆 —— 对话历史裁剪\n\n> 以下四份设计**已假定 RAG 检索器存在**，上一版的 ⚠️ 退化标记全部移除。\n\n**核心决策：保留窗口用「轮次 + token 双闸门」，超出走摘要而非硬丢弃。**\n\n- 默认保留 `system` + 最近 `K = 3` 轮；同时设 token 上限（建议总预算 50%），先触发者先裁。\n- **裁剪优先级**（v3.0 适配）：旧的检索 chunk 正文（可重新检索，最该丢）> 旧的网页正文 > 旧的工具调用记录 > 旧的模型回答 > 最近 K 轮（不丢）。\n- 超限不硬丢，先送设计三摘要再丢。\n\n> 对应 compaction：优先丢\"可重新获取的原材料\"。在 v3.0 里，检索 chunk 是最典型的可重获取原材料——丢了随时能 re-retrieve。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 设计二：长期记忆 —— 三类记忆",
+    "chunk_id": 8,
+    "text": "# 第二部分：第五周记忆系统（上层） > 设计二：长期记忆 —— 三类记忆\n\n**核心决策：三类分开存、不同写入策略，写入用「规则抽取 + 模型显式」双通道。**\n\n| 类型 | 性质 | 数据结构 | 写入时机 | 每轮进 prompt |\n|------|------|---------|---------|:----------:|\n| 用户偏好 | 低频/强约束 | key-value | 显式信号触发 | **是** |\n| 已确认事实 | 中频/会话内高相关 | 带来源+时间戳列表 `{fact, source: \"doc#section / turn\", turn}` | 回答被认可后自动抽取 | 否（召回） |\n| 主题兴趣 | 累积/弱约束 | 计数权重 | 每轮自动累加 | 否（召回加权） |\n\n- **已确认事实的来源字段现在可记到 chunk 级**（`doc#section#chunk_id`），因为 RAG 引用约束已提供——这是 RAG 给记忆带来的直接增益。\n- 写入双通道：规则抽取（主题/事实候选，零成本）+ 模型显式（偏好）。\n- ❌ 不要每轮让模型抽取记忆（成本/延迟，第三周假阳性教训的记忆版）。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 设计三：记忆摘要模块",
+    "chunk_id": 9,
+    "text": "# 第二部分：第五周记忆系统（上层） > 设计三：记忆摘要模块\n\n**核心决策：触发用「token 闸门为主、轮次为辅」，粒度按记忆类型分层压缩。**\n\n- 触发：token 主闸门 + 每 8 轮兜底 + 显式信号加分。\n- **分层压缩**：被裁旧轮次先抽出「已确认事实」晋升到长期记忆（高保真带 chunk 引用），剩下过程性对话压成一句话级低保真摘要。\n- 待验证：压缩省下的 token 是否 > 摘要调用本身的成本。",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 设计四：上下文装配顺序 —— 《上下文装配策略图》雏形",
+    "chunk_id": 10,
+    "text": "# 第二部分：第五周记忆系统（上层） > 设计四：上下文装配顺序 —— 《上下文装配策略图》雏形\n\n**核心决策：固定装配顺序 + 分段 token 预算，每轮调用前动态组装。**\n\n| 段 | 内容 | 来源 | 预算 | 进出规则 |\n|:--:|------|------|:--:|---------|\n| 1 | System prompt | config | 固定 | 永远在 |\n| 2 | 用户偏好 | 长期记忆 | 很小 | 永远在 |\n| 3 | 历史摘要 | 摘要模块 | 小 | 有则在 |\n| 4 | 召回的长期事实 | 长期记忆，**用 RAG retriever 做语义召回** | 中 | 相关性 top-k ✅ |\n| 5 | 最近 K 轮 | 短期记忆 | 大 | 双闸门裁剪 |\n| 6 | 当前问题 + 本轮检索 chunk | 实时 | 最大 | 永远在 |\n\n> **段 4 的关键变化**：现在用 RAG 的 retriever 做语义召回（不再退化为关键词匹配）。长期记忆和文档库可以共用同一套 embedding + 向量存储，只是 namespace 不同（一个存文档 chunk，一个存记忆条目）。\n\n排序逻辑：越稳定/强约束越靠前（不易裁），越易变/大体量越靠后。超预算时段 5 先裁 → 段 3/4 次之 → 段 1/2/6 不可裁。\n\n需画两张图：①静态装配顺序表 ②动态超预算决策流 → 合成《上下文装配策略图》。\n\n---",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 目标架构 search_agent v3.0",
+    "chunk_id": 11,
+    "text": "# 第二部分：第五周记忆系统（上层） > 目标架构 search_agent v3.0\n\n```\nsearch_agent/ v3.0\n├── config.py        → + RAG 常量(chunk_size, top_k, embedding_model) + 记忆常量(K, token预算, 摘要阈值)\n├── tools.py         → web_search, fetch_webpage + retrieve_documents【新】\n├── agent.py         → Agent Loop；组装点改为调用 memory.assemble_context()\n├── checks.py        → should_have_searched / should_have_retrieved【新】\n├── trace.py         → + 检索 trace 字段 + 记忆读写字段\n├── rag/                              【新，第四周】\n│   ├── ingest.py    → 文档加载 + chunking\n│   ├── embed.py     → embedding 生成\n│   ├── store.py     → 向量存储 + top-k 检索（文档 + 记忆共用）\n│   └── retriever.py → 检索 + 可选 rerank + 引用打包\n├── memory.py        → 短期裁剪 / 长期读写 / 摘要 / 装配（复用 rag.retriever 做语义召回）【新，第五周】\n└── main.py\n```\n\n依赖关系：`memory.py` 依赖 `rag/`（语义召回）；`agent.py` 只在\"组装 messages\"一处调用 `memory.assemble_context()`。\n\n---",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 本周紧凑排期（周三 → 周日）",
+    "chunk_id": 12,
+    "text": "# 第二部分：第五周记忆系统（上层） > 本周紧凑排期（周三 → 周日）\n\n> 工作量偏满。带 ★ 的是核心必做；带 ◇ 的时间紧可推迟到第六周。\n\n| 日 | 任务 | 产出 |\n|----|------|------|\n| **周三** | 验证实验：embedding API 通不通、向量检索 demo、+ 3 个记忆假设 | 实验结论文档 |\n| **周四** | ★ 实现 `rag/` 四模块 + `retrieve_documents` 工具 + `should_have_retrieved` + 引用约束 | 跑通的最小 RAG Agent |\n| **周五** | ★ 实现 `memory.py`（短期裁剪 + 装配顺序优先），◇ 摘要/主题加权 | v3.0 雏形 |\n| **周六** | 复盘 + 《RAG 失败模式记录》+ 画两张装配图 | 复盘 + 《上下文装配策略图》 |\n| **周日** | 评测：检索准确率、引用正确率、记忆读写正确性各补测试样例 | test_report + 失败归因 |\n\n**砍优先级**：若周五吃紧，先保 短期记忆 + 设计四装配（这俩是记忆系统的骨架），把 摘要模块 + 主题兴趣加权 推到第六周。RAG 主线和短期记忆不能砍。\n\n---",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  },
+  {
+    "doc": "第四五周整合设计_RAG与记忆系统",
+    "section": "第二部分：第五周记忆系统（上层） > 周三验证实验待测清单",
+    "chunk_id": 13,
+    "text": "# 第二部分：第五周记忆系统（上层） > 周三验证实验待测清单\n\n1. **千问 embedding 链路**：text-embedding 模型能否正常返回向量？维度多少？批量调用稳不稳？（决定 `embed.py` 怎么写）\n2. **段 4 召回有效性**：用 RAG retriever 召回长期记忆条目，相关性够不够？文档库和记忆库共用向量存储会不会互相污染？（决定是否分 namespace）\n3. **混合上下文优先级**：千问在\"历史摘要 + 召回事实 + 当前问题 + 本轮 chunk\"混合下，会不会优先用旧摘要而忽略本轮新检索？（类比第三周 `json_schema 吃掉 tools` 的优先级坑）\n4. **规则抽取准确率**：记忆写入的规则抽取在真实对话样本上够不够撑\"每轮自动写\"？\n5. **chunking 策略对比**：按字数切 vs 按标题切，在你的笔记语料上召回准确率差多少？（决定 `ingest.py` 默认策略）",
+    "path": "week_4&5/docs/第四五周整合设计_RAG与记忆系统.md"
+  }
+]

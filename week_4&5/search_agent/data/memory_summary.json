@@ -1,0 +1,3 @@
+{
+  "summary": "第三周Agent Loop通过consecutive_errors计数器监控工具失败，成功调用即重置；连续失败作为触发降级的关键信号。\n\n第三周Agent Loop采用“成功即重置”策略，连续失败达阈值（如3次）触发降级，转为基于已有snippet回答。\n\nconsecutive_errors 在任意工具调用成功时立即重置为0，实现“成功即重置”的执行保护机制。\n\n本项目RAG按Markdown标题和自然段落语义切分，优先保证逻辑完整性；超长子节在句末标点处回溯切分。"
+}

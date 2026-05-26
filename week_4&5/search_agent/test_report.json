@@ -1,0 +1,581 @@
+{
+  "version": "3.0",
+  "timestamp": "2026-05-22T17:15:03.126520",
+  "total_cases": 8,
+  "results": [
+    {
+      "id": 1,
+      "query": "2024年诺贝尔物理学奖颁给了谁？",
+      "category": "factual_time",
+      "expect_search": true,
+      "expect_retrieve": false,
+      "actual_search": true,
+      "actual_retrieve": false,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 2,
+      "duration_ms": 21677,
+      "answer_preview": "2024年诺贝尔物理学奖授予了三位科学家，以表彰他们在**人工神经网络与机器学习基础理论**方面的开创性贡献：\n\n- **约翰·霍普菲尔德（John J. Hopfield）**（美国普林斯顿大学、加州理工学院），因其提出**霍普菲尔德神经网络**（一种具有联想记忆能力的循环神经网络模型）而获奖；  \n- **杰弗里·辛顿（Geoffrey E. Hinton）**（英国/加拿大，多伦多大学），因其在**深度学习与反向传播算法**上的奠基性工作，尤其是推动了现代人工智能的突破；  \n- **约书亚·本吉奥（Yoshua Bengio）**（加拿大蒙特利尔大学）也常被媒体提及，但根据诺贝尔奖官网",
+      "trace": {
+        "user_question": "2024年诺贝尔物理学奖颁给了谁？",
+        "total_turns": 2,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              {
+                "tool_name": "web_search",
+                "tool_args": {
+                  "query": "2024 Nobel Prize Physics winner"
+                },
+                "result_success": true,
+                "result_summary": "[5 results] First: 2024NobelPrizes- Wikipedia",
+                "error_type": null,
+                "duration_ms": 9643,
+                "retrieved_chunks": []
+              }
+            ],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          },
+          {
+            "turn_number": 2,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "2024年诺贝尔物理学奖授予了三位科学家，以表彰他们在**人工神经网络与机器学习基础理论**方面的开创性贡献：\n\n- **约翰·霍普菲尔德（John J. Hopfield）**（美国普林斯顿大学、加州理工学院），因其提出**霍普菲尔德神经网络**（一种具有联想记忆能力的循环神经网络模型）而获奖；  \n- **杰弗里·辛顿（Geoffrey E. Hinton）**（英国/加拿大，多伦多大学），因其在**深度学习与反向传播算法**上的奠基性工作，尤其是推动了现代人工智能的突破；  \n- **约书亚·本吉奥（Yoshua Bengio）**（加拿大蒙特利尔大学）也常被媒体提及，但根据诺贝尔奖官网确认，**2024年物理学奖仅颁给霍普菲尔德和辛顿两人**——第三位获奖者实为**戴维·J·索利斯（David J. Thouless）？不，那是2016年**。经核实，**2024年官方公布的两位获奖者是：John J. Hopfield 和 Geoffrey E. Hinton**。\n\n> ✅ 来源依据：[NobelPrize.org 官方页面](https://www.nobelprize.org/prizes/physics/2024/summary/) 与 [The Guardian 报道](https://www.theguardian.com/science/2024/oct/08/nobel-prize-physics-john-hopfield-geoffrey-hinton-machine-learning) 均明确指出，该奖“jointly awarded to John J. Hopfield and Geoffrey E. Hinton for foundational discoveries and inventions that enable machine learning”（共同授予约翰·霍普菲尔德和杰弗里·辛顿，以表彰其使机器学习成为可能的基础性发现与发明）。",
+        "searched": true,
+        "retrieved": false,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 21677
+      }
+    },
+    {
+      "id": 2,
+      "query": "写一首关于春天的五言绝句",
+      "category": "creative",
+      "expect_search": false,
+      "expect_retrieve": false,
+      "actual_search": false,
+      "actual_retrieve": false,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 1,
+      "duration_ms": 3344,
+      "answer_preview": "好的，这是一首为您创作的关于春天的五言绝句：\n\n《春晓即事》\n风软柳初黄，莺梭桃欲燃。\n稚子追蝶去，笑落一庭暄。\n\n注：此诗严格遵循五言绝句格律（仄起首句不入韵），通过“柳初黄”、“桃欲燃”等意象勾勒早春生机，以“稚子追蝶”的动态场景收束，末句“笑落一庭暄”将无形的暖意与欢愉具象化，余味悠长。",
+      "trace": {
+        "user_question": "写一首关于春天的五言绝句",
+        "total_turns": 1,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "好的，这是一首为您创作的关于春天的五言绝句：\n\n《春晓即事》\n风软柳初黄，莺梭桃欲燃。\n稚子追蝶去，笑落一庭暄。\n\n注：此诗严格遵循五言绝句格律（仄起首句不入韵），通过“柳初黄”、“桃欲燃”等意象勾勒早春生机，以“稚子追蝶”的动态场景收束，末句“笑落一庭暄”将无形的暖意与欢愉具象化，余味悠长。",
+        "searched": false,
+        "retrieved": false,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 3344
+      }
+    },
+    {
+      "id": 3,
+      "query": "帮我算一下 234 × 567",
+      "category": "math",
+      "expect_search": false,
+      "expect_retrieve": false,
+      "actual_search": false,
+      "actual_retrieve": false,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 1,
+      "duration_ms": 801,
+      "answer_preview": "234 × 567 = 132,678",
+      "trace": {
+        "user_question": "帮我算一下 234 × 567",
+        "total_turns": 1,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "234 × 567 = 132,678",
+        "searched": false,
+        "retrieved": false,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 801
+      }
+    },
+    {
+      "id": 4,
+      "query": "我们第三周的 Agent Loop 是怎么处理工具连续失败的？",
+      "category": "rag_internal",
+      "expect_search": false,
+      "expect_retrieve": true,
+      "actual_search": false,
+      "actual_retrieve": true,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 2,
+      "duration_ms": 13706,
+      "answer_preview": "根据本地文档，第三周的 Agent Loop 对工具连续失败的处理机制如下：\n\n- **引入了连续失败计数器（`consecutive_errors`）**：当工具调用返回错误时，计数器加 1；一旦任意一次工具调用成功，计数器立即重置为 0。该策略被明确称为“控制点 2：执行保护”中的核心逻辑 `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`。\n\n- **将连续失败作为触发降级的关键信号**：在第三周设计中，“连续失败”是判断是否需要主动引导模型降级（例如放弃抓取网页，转而基于已有 snipp",
+      "trace": {
+        "user_question": "我们第三周的 Agent Loop 是怎么处理工具连续失败的？",
+        "total_turns": 2,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              {
+                "tool_name": "retrieve_documents",
+                "tool_args": {
+                  "query": "第三周 Agent Loop 工具连续失败 处理机制"
+                },
+                "result_success": true,
+                "result_summary": "[5 chunks] Top: 第二周学习复盘#第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式 > 当前实现的不足（本周发现） score=0.7801",
+                "error_type": null,
+                "duration_ms": 387,
+                "retrieved_chunks": [
+                  {
+                    "doc": "第二周学习复盘",
+                    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式 > 当前实现的不足（本周发现）",
+                    "chunk_id": 18,
+                    "score": 0.7801
+                  },
+                  {
+                    "doc": "Agent_Loop_设计笔记",
+                    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置",
+                    "chunk_id": 9,
+                    "score": 0.7731
+                  },
+                  {
+                    "doc": "README",
+                    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > Agent 实现层面",
+                    "chunk_id": 2,
+                    "score": 0.7483
+                  },
+                  {
+                    "doc": "Agent_Loop_设计笔记",
+                    "section": "Agent Loop 设计笔记",
+                    "chunk_id": 0,
+                    "score": 0.7334
+                  },
+                  {
+                    "doc": "第三周学习复盘",
+                    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 4：Agent 控制循环的复杂度呈指数增长",
+                    "chunk_id": 9,
+                    "score": 0.7075
+                  }
+                ]
+              }
+            ],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          },
+          {
+            "turn_number": 2,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "根据本地文档，第三周的 Agent Loop 对工具连续失败的处理机制如下：\n\n- **引入了连续失败计数器（`consecutive_errors`）**：当工具调用返回错误时，计数器加 1；一旦任意一次工具调用成功，计数器立即重置为 0。该策略被明确称为“控制点 2：执行保护”中的核心逻辑 `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`。\n\n- **将连续失败作为触发降级的关键信号**：在第三周设计中，“连续失败”是判断是否需要主动引导模型降级（例如放弃抓取网页，转而基于已有 snippet 总结回答）的核心条件。这一需求源于第二周实测中 `fetch_webpage` 连续 403 失败导致无答案输出的问题 `[README#Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > Agent 实现层面]`。\n\n- **与更复杂的滑动窗口方案做了取舍**：设计文档明确指出，未采用“最近 N 次中失败超过 M 次”的滑动窗口策略，原因是搜索 Agent 的工具调用具有线性特征（搜索 → 抓取 → 搜索 → 抓取），极少出现成功与失败交替的情况，因此“连续失败”已足够有效 `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`。\n\n- **该机制是第三周新增的三个检查机制之一**：它使 Agent Loop 分支显著复杂化，从第二周的简单二分支演变为多层嵌套判断，凸显了手动 while 循环在扩展性上的局限 `[第三周学习复盘#第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 4：Agent 控制循环的复杂度呈指数增长]`。",
+        "searched": false,
+        "retrieved": true,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 13706
+      }
+    },
+    {
+      "id": 5,
+      "query": "在我们的设计里，should_have_searched 用了哪些规则？",
+      "category": "rag_internal",
+      "expect_search": false,
+      "expect_retrieve": true,
+      "actual_search": false,
+      "actual_retrieve": true,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 2,
+      "duration_ms": 13069,
+      "answer_preview": "根据本地设计文档，`should_have_searched` 函数采用的是**基于关键词和正则的启发式规则**，其核心设计与使用规则如下：\n\n- **基础机制是无状态的关键词/正则匹配**：`should_have_searched(user_message)` 仅分析当前用户输入（`user_message`），不依赖对话历史或上下文状态，因此本质上是一个静态判断函数 `[Agent_Loop_设计笔记#五、未解决的问题（留给后续周次）> Q1]`。\n\n- **规则覆盖典型需搜索的提问模式**：虽未在文档中逐条列出全部关键词，但测试表明它在 28 条测试用例上达到 100% 准确率，说明已",
+      "trace": {
+        "user_question": "在我们的设计里，should_have_searched 用了哪些规则？",
+        "total_turns": 2,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              {
+                "tool_name": "retrieve_documents",
+                "tool_args": {
+                  "query": "should_have_searched 规则设计"
+                },
+                "result_success": true,
+                "result_summary": "[5 chunks] Top: Agent_Loop_设计笔记#Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q1：规则引擎的上限在哪里？ score=0.7346",
+                "error_type": null,
+                "duration_ms": 263,
+                "retrieved_chunks": [
+                  {
+                    "doc": "Agent_Loop_设计笔记",
+                    "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q1：规则引擎的上限在哪里？",
+                    "chunk_id": 19,
+                    "score": 0.7346
+                  },
+                  {
+                    "doc": "Agent_Loop_设计笔记",
+                    "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 周五发现的假阳性问题及修复",
+                    "chunk_id": 6,
+                    "score": 0.6665
+                  },
+                  {
+                    "doc": "README",
+                    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计",
+                    "chunk_id": 5,
+                    "score": 0.6402
+                  },
+                  {
+                    "doc": "第三周学习复盘",
+                    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周五 — 分析测试报告 + 修复问题",
+                    "chunk_id": 5,
+                    "score": 0.6131
+                  },
+                  {
+                    "doc": "第二周学习复盘",
+                    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析",
+                    "chunk_id": 20,
+                    "score": 0.6055
+                  }
+                ]
+              }
+            ],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          },
+          {
+            "turn_number": 2,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "根据本地设计文档，`should_have_searched` 函数采用的是**基于关键词和正则的启发式规则**，其核心设计与使用规则如下：\n\n- **基础机制是无状态的关键词/正则匹配**：`should_have_searched(user_message)` 仅分析当前用户输入（`user_message`），不依赖对话历史或上下文状态，因此本质上是一个静态判断函数 `[Agent_Loop_设计笔记#五、未解决的问题（留给后续周次）> Q1]`。\n\n- **规则覆盖典型需搜索的提问模式**：虽未在文档中逐条列出全部关键词，但测试表明它在 28 条测试用例上达到 100% 准确率，说明已覆盖如“诺贝尔奖”“MCP 协议”“LangGraph vs CrewAI”等事实性、技术性、对比类问题的触发词 `[Agent_Loop_设计笔记#五、未解决的问题（留给后续周次）> Q1]`。\n\n- **明确存在语义局限，无法处理歧义表达**：例如用户问“帮我解释一下这段代码是什么意思”，因含关键词“什么意思”而被规则误判为需搜索，实则应由模型直接解释——这暴露了规则引擎**无法理解语义意图**的根本缺陷 `[Agent_Loop_设计笔记#五、未解决的问题（留给后续周次）> Q1]`。\n\n- **必须配合上下文状态检查才能实用**：单独使用会导致高假阳性（如已搜索过仍重复触发纠正）。因此实际部署中强制增加了前置条件 `already_searched`，即只有在“尚未搜索过”且 `should_have_searched()` 返回 True 时才触发纠正 `[第三周学习复盘#一、本周时间线 > 周五]`。\n\n- **设计定位是轻量级第一道过滤器**：它并非最终决策者，而是作为低成本、低延迟的初步筛查；真正复杂的语义判断需留待 LLM 层完成，规则引擎仅负责拦截明显需搜索的 case `[Agent_Loop_设计笔记#五、未解决的问题（留给后续周次）> Q1]`。",
+        "searched": false,
+        "retrieved": true,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 13069
+      }
+    },
+    {
+      "id": 6,
+      "query": "本项目第四周的 RAG 是怎么决定 chunking 策略的？",
+      "category": "rag_internal",
+      "expect_search": false,
+      "expect_retrieve": true,
+      "actual_search": false,
+      "actual_retrieve": true,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 2,
+      "duration_ms": 11277,
+      "answer_preview": "根据本地文档检索结果，本项目第四周的 RAG chunking 策略决策如下：\n\n- **核心原则是优先按语义结构切分**，而非简单按固定长度切分。具体采用「按 Markdown 标题和段落」进行切块，因为项目自身的技术笔记（如前几周复盘、Tool 设计规范、Agent Loop 笔记）结构化程度高，按标题切能更好保持语义完整性 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **固定大小+重叠作为起步备选方案**，例如 500 token 长度 + 50 token 重叠，但明确指出这是次优选择，仅用于语料结",
+      "trace": {
+        "user_question": "本项目第四周的 RAG 是怎么决定 chunking 策略的？",
+        "total_turns": 2,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              {
+                "tool_name": "retrieve_documents",
+                "tool_args": {
+                  "query": "第四周 RAG chunking 策略"
+                },
+                "result_success": true,
+                "result_summary": "[5 chunks] Top: 第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking score=0.817",
+                "error_type": null,
+                "duration_ms": 143,
+                "retrieved_chunks": [
+                  {
+                    "doc": "第四五周整合设计_RAG与记忆系统",
+                    "section": "第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking",
+                    "chunk_id": 2,
+                    "score": 0.817
+                  },
+                  {
+                    "doc": "第四五周整合设计_RAG与记忆系统",
+                    "section": "第一部分：第四周 RAG（地基） > RAG-4：为什么只检索不够（rerank / 引用约束）",
+                    "chunk_id": 5,
+                    "score": 0.7502
+                  },
+                  {
+                    "doc": "第四五周整合设计_RAG与记忆系统",
+                    "section": "第一部分：第四周 RAG（地基） > RAG-2：Embedding 与向量存储",
+                    "chunk_id": 3,
+                    "score": 0.7309
+                  },
+                  {
+                    "doc": "第四五周整合设计_RAG与记忆系统",
+                    "section": "第一部分：第四周 RAG（地基） > 第四周产出物",
+                    "chunk_id": 6,
+                    "score": 0.7245
+                  },
+                  {
+                    "doc": "第三周学习复盘",
+                    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第四周（RAG）",
+                    "chunk_id": 17,
+                    "score": 0.7207
+                  }
+                ]
+              }
+            ],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          },
+          {
+            "turn_number": 2,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "根据本地文档检索结果，本项目第四周的 RAG chunking 策略决策如下：\n\n- **核心原则是优先按语义结构切分**，而非简单按固定长度切分。具体采用「按 Markdown 标题和段落」进行切块，因为项目自身的技术笔记（如前几周复盘、Tool 设计规范、Agent Loop 笔记）结构化程度高，按标题切能更好保持语义完整性 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **固定大小+重叠作为起步备选方案**，例如 500 token 长度 + 50 token 重叠，但明确指出这是次优选择，仅用于语料结构不清晰时的兜底策略 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **每个 chunk 必须携带结构化元数据**，包括 `doc`（文件名）、`section`（标题路径）、`chunk_id`（序号）和 `text`（正文），其中 `section` 和 `chunk_id` 是后续实现引用约束（citation constraint）的关键字段 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **该策略的动机直接关联 RAG 失败模式预防**：避免“切得太碎丢上下文”或“切得太大稀释语义”，这两者被列为「召回不准」的主要根因 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。",
+        "searched": false,
+        "retrieved": true,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 11277
+      }
+    },
+    {
+      "id": 7,
+      "query": "我之前的笔记里，URL 黑名单是怎么用的？",
+      "category": "rag_internal",
+      "expect_search": false,
+      "expect_retrieve": true,
+      "actual_search": false,
+      "actual_retrieve": true,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 2,
+      "duration_ms": 9243,
+      "answer_preview": "根据你的本地笔记，URL 黑名单目前处于“待改进”阶段，尚未实际部署，但已有明确的设计意图和使用规划。具体如下：\n\n- **设计目的**：用于解决 `fetch_webpage` 在访问 Medium 等具有反爬机制的网站时频繁返回 403 错误的问题，避免轮次浪费和失败重试[第二周学习复盘#三、踩坑记录#chunk_id=13]。\n\n- **预期使用方式**：在调用 `fetch_webpage` 前，先进行 **URL 预检测**，包括：\n  - 维护一个已知反爬站点的黑名单（如 `medium.com`, `arxiv.org` 等）；\n  - 对待抓取 URL 执行 HEAD 请求，检",
+      "trace": {
+        "user_question": "我之前的笔记里，URL 黑名单是怎么用的？",
+        "total_turns": 2,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              {
+                "tool_name": "retrieve_documents",
+                "tool_args": {
+                  "query": "URL 黑名单 使用方法"
+                },
+                "result_success": true,
+                "result_summary": "[5 chunks] Top: 第二周学习复盘#第二周学习复盘：工具调用与单 Agent 雏形 > 三、踩坑记录 score=0.4898",
+                "error_type": null,
+                "duration_ms": 185,
+                "retrieved_chunks": [
+                  {
+                    "doc": "第二周学习复盘",
+                    "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 三、踩坑记录",
+                    "chunk_id": 13,
+                    "score": 0.4898
+                  },
+                  {
+                    "doc": "第三周学习复盘",
+                    "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
+                    "chunk_id": 11,
+                    "score": 0.487
+                  },
+                  {
+                    "doc": "README",
+                    "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计",
+                    "chunk_id": 5,
+                    "score": 0.455
+                  },
+                  {
+                    "doc": "第四五周整合设计_RAG与记忆系统",
+                    "section": "第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking",
+                    "chunk_id": 2,
+                    "score": 0.452
+                  },
+                  {
+                    "doc": "README",
+                    "section": "Search Agent — Week 2 Demo > 工具设计",
+                    "chunk_id": 1,
+                    "score": 0.4436
+                  }
+                ]
+              }
+            ],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          },
+          {
+            "turn_number": 2,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "根据你的本地笔记，URL 黑名单目前处于“待改进”阶段，尚未实际部署，但已有明确的设计意图和使用规划。具体如下：\n\n- **设计目的**：用于解决 `fetch_webpage` 在访问 Medium 等具有反爬机制的网站时频繁返回 403 错误的问题，避免轮次浪费和失败重试[第二周学习复盘#三、踩坑记录#chunk_id=13]。\n\n- **预期使用方式**：在调用 `fetch_webpage` 前，先进行 **URL 预检测**，包括：\n  - 维护一个已知反爬站点的黑名单（如 `medium.com`, `arxiv.org` 等）；\n  - 对待抓取 URL 执行 HEAD 请求，检查 `Content-Type` 和 HTTP 状态码；\n  - 若命中黑名单或预检失败，则跳过该 URL，不进入实际抓取流程[README#Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计#chunk_id=5]。\n\n- **当前状态**：该功能被列为“待改进”，尚未在代码中实现，属于工具设计层面的下一步优化项，而非已启用的功能[README#Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计#chunk_id=5]。\n\n如需我帮你起草黑名单初始化逻辑或预检测函数，可随时提出。",
+        "searched": false,
+        "retrieved": true,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 9243
+      }
+    },
+    {
+      "id": 8,
+      "query": "MCP 协议是什么？",
+      "category": "tech_concept",
+      "expect_search": true,
+      "expect_retrieve": false,
+      "actual_search": true,
+      "actual_retrieve": false,
+      "search_correct": true,
+      "retrieve_correct": true,
+      "has_answer": true,
+      "passed": true,
+      "correction_triggered": false,
+      "retrieval_correction_triggered": false,
+      "fallback_triggered": false,
+      "total_turns": 2,
+      "duration_ms": 17917,
+      "answer_preview": "根据联网搜索结果，**MCP（Model Context Protocol，模型上下文协议）是一个新兴的开源协议，旨在标准化 AI 应用（尤其是 LLM 驱动的 Agent）与外部工具、数据源及服务之间的连接与上下文交换方式**。其核心类比是“AI 领域的 USB-C”：提供统一接口，降低集成复杂度。\n\n关键事实如下（均来自权威技术来源）：\n\n- **定位与目标**：MCP 是一个开放协议，用于定义 AI 应用如何安全、可扩展地访问和调用外部系统（如日历、数据库、代码执行环境等），类似于 OpenAPI 之于 Web API；它不绑定特定厂商或平台，支持跨框架互操作 `[modelcontex",
+      "trace": {
+        "user_question": "MCP 协议是什么？",
+        "total_turns": 2,
+        "turns": [
+          {
+            "turn_number": 1,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              {
+                "tool_name": "web_search",
+                "tool_args": {
+                  "query": "MCP Model Context Protocol AI agent"
+                },
+                "result_success": true,
+                "result_summary": "[5 results] First: Model Context Protocol - Wikipedia",
+                "error_type": null,
+                "duration_ms": 2626,
+                "retrieved_chunks": []
+              }
+            ],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          },
+          {
+            "turn_number": 2,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "correction_injected": false,
+            "fallback_injected": false,
+            "retrieval_correction_injected": false
+          }
+        ],
+        "final_answer": "根据联网搜索结果，**MCP（Model Context Protocol，模型上下文协议）是一个新兴的开源协议，旨在标准化 AI 应用（尤其是 LLM 驱动的 Agent）与外部工具、数据源及服务之间的连接与上下文交换方式**。其核心类比是“AI 领域的 USB-C”：提供统一接口，降低集成复杂度。\n\n关键事实如下（均来自权威技术来源）：\n\n- **定位与目标**：MCP 是一个开放协议，用于定义 AI 应用如何安全、可扩展地访问和调用外部系统（如日历、数据库、代码执行环境等），类似于 OpenAPI 之于 Web API；它不绑定特定厂商或平台，支持跨框架互操作 `[modelcontextprotocol.io]` `[anthropic.com/engineering]`。\n\n- **解决的问题**：传统 Agent 构建中，每个工具需手动编写 Schema、参数校验与结果解析逻辑，导致上下文开销大、维护成本高；MCP 通过标准化工具描述（类似 OpenAPI spec）、发现机制和调用契约，使 Agent 可自动识别并调用任意符合 MCP 的工具 `[anthropic.com/engineering]` `[openai.github.io]`。\n\n- **实际应用**：Microsoft Azure 和 OpenAI Agents SDK 已将 MCP 作为官方推荐集成方案；Anthropic 在工程实践中验证其可显著提升代码执行类 Agent 的效率与可维护性 `[learn.microsoft.com]` `[anthropic.com/engineering]` `[openai.github.io]`。\n\n- **状态**：截至 2024 年中，MCP 处于活跃开发阶段，已有参考实现（如 `mcp-server`）、语言 SDK（Python/TypeScript）及社区工具适配器，但尚未成为 ISO/IEEE 标准 `[en.wikipedia.org]` `[modelcontextprotocol.io]`。\n\n如需进一步了解其 JSON-RPC 接口规范、工具注册流程或与你当前 RAG/Tool 设计的兼容性分析，我可继续深入检索或结合本地架构做适配建议。",
+        "searched": true,
+        "retrieved": false,
+        "correction_triggered": false,
+        "fallback_triggered": false,
+        "retrieval_correction_triggered": false,
+        "total_duration_ms": 17917
+      }
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "pass_rate": "8/8 (100%)",
+    "search_correction_count": 0,
+    "retrieval_correction_count": 0,
+    "fallback_count": 0,
+    "avg_turns": 1.75,
+    "avg_duration_ms": 11379.25
+  }
+}
