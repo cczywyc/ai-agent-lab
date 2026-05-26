@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week 4&5 代码分析 · RAG 与记忆系统</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#161b22; --panel2:#1c2330; --border:#2a313c;
+    --text:#d6dde6; --muted:#8b97a7; --accent:#58a6ff; --accent2:#7ee787;
+    --warn:#f0a868; --code-bg:#0d1117; --th:#222a35;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.75; font-size:16px;
+  }
+  .wrap{display:flex; max-width:1280px; margin:0 auto;}
+  /* 侧边导航 */
+  nav.toc{
+    position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto;
+    width:260px; flex:0 0 260px; padding:24px 16px; border-right:1px solid var(--border);
+    background:var(--panel);
+  }
+  nav.toc h2{font-size:13px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin:0 0 12px;}
+  nav.toc a{display:block; color:var(--text); text-decoration:none; padding:5px 10px; border-radius:6px; font-size:14px; margin:2px 0;}
+  nav.toc a:hover{background:var(--panel2); color:var(--accent);}
+  nav.toc a.sub{padding-left:24px; font-size:13px; color:var(--muted);}
+  main{flex:1; min-width:0; padding:40px 48px 120px;}
+  header.hero{border-bottom:1px solid var(--border); padding-bottom:24px; margin-bottom:32px;}
+  header.hero h1{font-size:30px; margin:0 0 8px; color:#fff;}
+  header.hero .tag{display:inline-block; background:var(--panel2); border:1px solid var(--border); color:var(--accent); font-size:12px; padding:3px 10px; border-radius:20px; margin-right:8px;}
+  header.hero p.meta{color:var(--muted); font-size:14px; margin:14px 0 0;}
+  h2.sec{font-size:23px; color:#fff; margin:48px 0 16px; padding-top:12px; border-top:1px solid var(--border);}
+  h3{font-size:18px; color:var(--accent2); margin:28px 0 10px;}
+  h4{font-size:15px; color:var(--warn); margin:20px 0 8px;}
+  p{margin:12px 0;}
+  code{background:var(--code-bg); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-family:"SF Mono",Consolas,"Roboto Mono",Menlo,monospace; font-size:13.5px; color:#9ecbff;}
+  pre{background:var(--code-bg); border:1px solid var(--border); border-radius:10px; padding:18px 20px; overflow-x:auto; font-size:13px; line-height:1.6;}
+  pre code{background:none; border:none; padding:0; color:#c9d1d9;}
+  table{width:100%; border-collapse:collapse; margin:18px 0; font-size:14px; overflow:hidden; border-radius:8px;}
+  th,td{border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:var(--th); color:#fff; font-weight:600;}
+  tr:nth-child(even) td{background:var(--panel);}
+  .callout{border-left:3px solid var(--warn); background:var(--panel2); padding:12px 18px; border-radius:0 8px 8px 0; margin:18px 0; color:#e6d4bd; font-size:14.5px;}
+  .callout.tip{border-color:var(--accent2); color:#cfeacb;}
+  .callout.info{border-color:var(--accent); color:#cfe0f5;}
+  .mermaid{background:#fff; border-radius:12px; padding:20px; margin:20px 0; overflow-x:auto; text-align:center;}
+  ol,ul{padding-left:24px;} li{margin:6px 0;}
+  .pill{display:inline-block; background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:1px 8px; font-size:12px; color:var(--accent2); font-family:monospace;}
+  .kpts li{margin:10px 0;}
+  footer{margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--muted); font-size:13px;}
+  a.toplink{color:var(--accent); text-decoration:none; font-size:13px;}
+  @media(max-width:980px){ nav.toc{display:none;} main{padding:28px 20px 80px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <h2>目录</h2>
+  <a href="#overview">一、项目定位</a>
+  <a href="#tree">二、目录结构总览</a>
+  <a href="#flow">三、主流程</a>
+  <a href="#flow-main" class="sub">3.1 入口分发</a>
+  <a href="#flow-loop" class="sub">3.2 核心循环</a>
+  <a href="#rag">四、RAG 模块详解</a>
+  <a href="#mem">五、记忆系统详解</a>
+  <a href="#trace">六、可观测性</a>
+  <a href="#highlights">七、设计亮点 / 取舍</a>
+  <a href="#seq">八、时序图</a>
+  <a href="#seq-text" class="sub">纯文本版</a>
+  <a href="#seq-keys" class="sub">看图关键点</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>Week 4&amp;5 代码分析 · RAG 与记忆系统</h1>
+  <div>
+    <span class="tag">v3.0</span>
+    <span class="tag">第4周 RAG</span>
+    <span class="tag">第5周 记忆系统</span>
+    <span class="tag">search_agent</span>
+  </div>
+  <p class="meta">AI-Agent Learning Roadmap · 代码与业务逻辑详解 · 生成于 2026-05-26</p>
+</header>
+
+<!-- ============ 一 ============ -->
+<h2 class="sec" id="overview">一、项目定位</h2>
+<p>这是 roadmap 第 4 周（RAG）和第 5 周（记忆系统）的<strong>合并实现</strong>，代号 <strong>v3.0</strong>。它不是从零写的，而是在第 2/3 周的「搜索 Agent」（<code>web_search</code> + <code>fetch_webpage</code> + 受控 Agent Loop）基础上，叠加了两层能力：</p>
+<ul>
+  <li><strong>第 4 周</strong>：给 Agent 接本地知识 → 新增 <code>retrieve_documents</code> 工具 + 整套 RAG 管线（切块 / 嵌入 / 向量库 / 检索）</li>
+  <li><strong>第 5 周</strong>：给 Agent 接记忆 → 新增六段上下文装配 + 短期 / 长期记忆 + 摘要压缩</li>
+</ul>
+<div class="callout info">一句话概括业务逻辑：<strong>用户提问 → 装配上下文（带记忆）→ Agent Loop 决策（本地优先、联网兜底、直答）→ 强制引用 → 回答后更新记忆</strong>。</div>
+
+<!-- ============ 二 ============ -->
+<h2 class="sec" id="tree">二、目录结构总览</h2>
+<pre><code>week_4&amp;5/search_agent/
+├── main.py          # CLI 入口：ingest / 交互 / 单查 / 测试 / 记忆 demo
+├── agent.py         # ★ 核心 Agent Loop（v3.0 三分支决策 + 纠正注入）
+├── config.py        # 配置中心：模型、RAG 常量、记忆常量、System Prompt、黑名单
+├── tools.py         # 三个工具 + 工具定义(schema) + 统一执行入口
+├── checks.py        # 规则引擎：should_have_searched / should_have_retrieved
+├── trace.py         # 三层可观测性 AgentTrace→TurnTrace→ToolCallTrace
+│
+├── rag/             # 【第4周】RAG 管线
+│   ├── ingest.py    #   Markdown 解析 + 按标题 chunking
+│   ├── embed.py     #   text-embedding-v3 封装 + 批量 + L2 归一化
+│   ├── store.py     #   numpy 余弦向量库 + 持久化
+│   └── retriever.py #   组装 embed+store 的检索接口 + 单例缓存
+│
+├── memory/          # 【第5周】记忆系统
+│   ├── manager.py   #   ★ 顶层门面：装配 + 更新协调
+│   ├── assembler.py #   六段上下文装配 + 分段预算裁剪
+│   ├── short_term.py#   短期记忆：最近 K 轮（轮次+字符双闸门）
+│   ├── long_term.py #   长期记忆：偏好/事实/主题 三类
+│   ├── extractor.py #   规则抽取（零成本，不调模型）
+│   └── summarizer.py#   被裁旧轮的事实晋升 + 一句话摘要
+│
+└── data/            # 持久化（向量 .npy + 元数据/记忆 .json）</code></pre>
+
+<h4>实际数据状态（核对自 data/ 目录）</h4>
+<ul>
+  <li>本地向量库已建好 <strong>100 个 chunk</strong>，来源：第二周复盘(27) / Agent_Loop_设计笔记(23) / 第三周复盘(23) / 第四五周整合设计(14) / 实验结论(7) / README(6)。</li>
+  <li>长期记忆里已有 <strong>1 条偏好、17 条事实、7 个主题计数、一段历史摘要</strong>——说明记忆 demo 已经跑过。</li>
+</ul>
+<div class="callout">注：<code>config.py</code> 里 <code>DEFAULT_INGEST_DIRS</code> 引用了 <code>week_4&amp;5/docs</code>，但该目录现已不存在（那份设计文档当时被切进向量库，文件后来移走了）。重新 ingest 时会 warning 跳过，不影响其它来源。</div>
+
+<!-- ============ 三 ============ -->
+<h2 class="sec" id="flow">三、主流程（最重要）</h2>
+
+<h3 id="flow-main">3.1 入口分发 <code>main.py</code></h3>
+<p><code>main()</code> 用 argparse 分发到 5 种模式：</p>
+<table>
+  <tr><th>命令</th><th>函数</th><th>作用</th></tr>
+  <tr><td><code>--ingest [--dry-run]</code></td><td><code>run_ingest</code></td><td>扫描项目内 <code>*.md</code> 重建向量库（dry-run 只切块不嵌入，验证切块对不对）</td></tr>
+  <tr><td><code>--query "..."</code></td><td><code>run_single</code></td><td>单次查询（默认不带记忆，<code>--with-memory</code> 开启）</td></tr>
+  <tr><td><code>--test [--rag-only]</code></td><td><code>run_test</code></td><td>跑 8 条测试用例，验证 search/retrieve 决策，输出 <code>test_report.json</code></td></tr>
+  <tr><td><code>--memory-demo</code></td><td><code>run_memory_demo</code></td><td>跑 4 轮模拟对话，演示偏好记忆、事实召回、装配</td></tr>
+  <tr><td>（无参数）</td><td><code>run_interactive</code></td><td>交互模式，支持 <code>/memory</code>、<code>/reset</code> 调试命令</td></tr>
+</table>
+<p>测试用例设计得很有意思：每条都带 <span class="pill">expect_search</span> / <span class="pill">expect_retrieve</span> 两个预期标志，断言的是 <strong>Agent 做了什么决策</strong>（是否调对工具），而不只是回答对不对。Case 4-7 是「本地 RAG 类」，Case 8「MCP 是什么」预期走联网（本地没覆盖），正好测试「本地优先、联网兜底」的边界。</p>
+
+<h3 id="flow-loop">3.2 核心循环 <code>agent.py::run_agent</code></h3>
+<p>整个系统的心脏。签名 <code>run_agent(user_message, max_turns, *, memory=None)</code>，返回 <code>(answer, trace)</code>。</p>
+
+<h4>第一步：构造初始 messages</h4>
+<ul>
+  <li><code>memory is not None</code> → 调 <code>memory.assemble_context()</code> 走<strong>六段装配</strong></li>
+  <li><code>memory is None</code> → 退化成 v3.0 RAG-only 行为（只有 system + user 两条消息）</li>
+</ul>
+<div class="callout tip">关键设计：<strong>记忆是可插拔的</strong>。测试模式刻意不带记忆，以保证用例可复现。</div>
+
+<h4>然后进入 <code>for turn in range(max_turns)</code> 循环（默认 <code>MAX_TURNS=6</code>）</h4>
+<p>每轮先做上下文长度监控（超 <code>MAX_CONTEXT_CHARS=8000</code> 仅 warning），调模型后按 <code>finish_reason</code> 分三个分支：</p>
+
+<h4>分支 1：<code>finish == "stop"</code>（模型想直接回答）</h4>
+<p>v3.0 最精彩的「<strong>纠正注入</strong>」逻辑。只有当模型<strong>从未碰过任何工具</strong>就想直答时才考虑纠正：</p>
+<pre><code>any_tool_called = has_searched or has_retrieved</code></pre>
+<ol>
+  <li><strong>检索纠正优先</strong>：<code>should_have_retrieved(问题)</code> 为真 → 注入 <code>RETRIEVAL_CORRECTION_MESSAGE</code>，逼它先查本地库</li>
+  <li><strong>搜索纠正其次</strong>：<code>should_have_searched(问题)</code> 为真 → 注入 <code>CORRECTION_MESSAGE</code>，逼它联网</li>
+</ol>
+<p>每种纠正<strong>最多注入一次</strong>，注入后 <code>continue</code> 重进循环。一旦模型已调过工具，就尊重它 stop 的判断——避免「模型已查本地 → 又强行让它联网」的多余轮次。都不触发就正常结束，最后 <code>memory.update_from_turn()</code> 更新记忆。</p>
+
+<h4>分支 2：<code>finish == "tool_calls"</code>（模型要调工具）</h4>
+<ul>
+  <li><code>execute_tool()</code> 执行并计时</li>
+  <li><code>retrieve_documents</code> 成功时额外抽取召回 chunk 元信息存进 trace</li>
+  <li>记录 <code>has_searched</code> / <code>has_retrieved</code>（即使失败也算「尝试过」，防止反复纠正）</li>
+  <li>工具结果以 <code>role:"tool"</code> 塞回 messages</li>
+</ul>
+<p><strong>连续失败处理</strong>有个细节：只有 <code>fetch_webpage</code> 失败才累加 <code>consecutive_errors</code>；<code>retrieve_documents</code> 的 <code>VectorStoreNotReady</code> 是配置问题，不该触发降级。当连续 fetch 失败 ≥ <code>MAX_CONSECUTIVE_ERRORS=2</code>，注入 <code>FALLBACK_MESSAGE</code> 让模型基于已有摘要回答。</p>
+
+<h4>分支 3：其它 <code>finish_reason</code></h4>
+<p>异常兜底，有内容就返回，否则继续。循环耗尽返回「[达到最大轮次]」。</p>
+
+<!-- ============ 四 ============ -->
+<h2 class="sec" id="rag">四、RAG 模块详解（第 4 周）</h2>
+<p>数据流：<code>ingest（切块）→ embed（向量化）→ store（存）</code> 建库；查询时 <code>retriever（embed query → store 检索 → 阈值过滤）</code>。</p>
+
+<h3><code>rag/ingest.py</code> — 切块策略</h3>
+<p>核心思路是<strong>结构优先、超长再滑窗</strong>：</p>
+<ul>
+  <li><code>_parse_markdown_sections</code>：正则解析标题并维护标题栈，把正文挂到完整标题路径上（如 <code>RAG-1 文档摄入 &gt; Chunking 策略</code>）。<strong>特意处理代码块</strong>——<code>```</code> 内部的 <code>#</code> 不会被误判成标题。</li>
+  <li><code>chunk_markdown_file</code>：① 太短的 section（&lt; <code>CHUNK_MIN_CHARS=50</code>）合并到相邻段；② 超长段用 <code>_split_long_text</code> 按 <code>\n\n</code> 累加，超 <code>CHUNK_TARGET_CHARS=800</code> 切开，相邻块留 <code>target/4</code> 字符<strong>重叠</strong>，硬上限 <code>CHUNK_MAX_CHARS=1500</code>。</li>
+  <li>每个 chunk 带 <code>{doc, section, chunk_id, text, path}</code>，<code>text</code> 前拼了 <code># 标题路径</code>，<strong>给嵌入提供上下文</strong>，也方便引用。</li>
+</ul>
+
+<h3><code>rag/embed.py</code> — 嵌入</h3>
+<ul>
+  <li>复用 <code>config.client</code>（DashScope OpenAI 兼容接口），模型 <code>text-embedding-v3</code>，1024 维。</li>
+  <li>自动分批（<code>EMBEDDING_BATCH_SIZE=10</code>），可选批间 sleep 防限流。</li>
+  <li><strong>关键：返回前做 L2 归一化</strong>——检索时余弦相似度直接退化为点积，省一次除法。</li>
+</ul>
+
+<h3><code>rag/store.py</code> — 最小向量库</h3>
+<ul>
+  <li>不上 FAISS/Chroma：学习阶段语料几十~几百条，numpy 足够、零运维、启动即载入。</li>
+  <li>持久化 = <code>{namespace}_vectors.npy</code>（N×D 矩阵）+ <code>{namespace}_metadata.json</code>，靠<strong>下标对齐</strong>关联向量和元数据。</li>
+  <li><code>search</code>：<code>scores = vectors @ query_vector</code>（点积=余弦），<code>np.argpartition</code> 取 top-k 再排序。</li>
+  <li><strong>多 namespace 设计</strong>：<code>docs</code> 存文档，<code>memory_facts</code> 存长期事实——同一个类，不同文件前缀，复用给记忆系统。</li>
+</ul>
+
+<h3><code>rag/retriever.py</code> — 检索门面</h3>
+<ul>
+  <li><code>retrieve()</code> 做<strong>阈值过滤</strong>：<code>score &lt; RETRIEVE_MIN_SCORE=0.30</code> 丢掉——这就是「只检索不够，还要引用约束/过滤」。返回 dict 列表方便 JSON 序列化进 tool result。</li>
+  <li><code>get_retriever(namespace)</code>：<strong>进程内单例缓存</strong>，避免每次查询重新 load 向量库。</li>
+</ul>
+
+<h3>RAG 怎么接进 Agent</h3>
+<p><code>tools.py::retrieve_documents</code> 是工具实现：延迟 import → 取单例 retriever → <code>is_ready()</code> 检查 → <code>retrieve()</code> → 统一的 error/空结果结构。</p>
+<p><strong>「本地优先」不是写死的，而是三处协同</strong>：</p>
+<ol>
+  <li>System Prompt 的 <code>Core Rule: Local First, Web Second</code> + 工具描述里的「<strong>Use this FIRST</strong>」</li>
+  <li>工具定义顺序：<code>retrieve_documents</code> 排第一</li>
+  <li><code>checks.should_have_retrieved</code> 作为兜底纠正——模型漏查时强制拉回</li>
+</ol>
+<div class="callout tip"><strong>强制引用</strong>双保险：System Prompt 要求每条事实带 <code>[doc#section]</code>；记忆模块<strong>只把带引用的句子</strong>当「已确认事实」存进长期记忆。</div>
+
+<!-- ============ 五 ============ -->
+<h2 class="sec" id="mem">五、记忆系统详解（第 5 周）</h2>
+<p>整个记忆系统对 <code>agent.py</code> 只暴露 <code>MemoryManager</code> 两个方法：<strong>调模型前 <code>assemble_context</code></strong>、<strong>调模型后 <code>update_from_turn</code></strong>。</p>
+
+<h3><code>memory/manager.py</code> — 顶层协调</h3>
+<p>组合 short / long / summarizer / assembler 四个组件。<code>update_from_turn</code>（每轮回答后）做 6 件事：</p>
+<ol>
+  <li><code>extract_topics</code> 抽主题 → <code>long.bump_topics</code> 计数</li>
+  <li><code>extract_preference</code> 抽偏好 → <code>long.set_preference</code></li>
+  <li><code>_extract_and_store_facts</code>：从带引用回答抽事实 → 批量 embed → 写长期记忆（json + 向量库）</li>
+  <li>本轮包成 <code>ConversationTurn</code> 加进短期记忆</li>
+  <li><code>_maybe_evict_and_summarize</code>：需要 evict 时对超窗旧轮做一句话摘要再丢弃</li>
+  <li>全部持久化落盘</li>
+</ol>
+
+<h3><code>memory/extractor.py</code> — 零成本写入通道</h3>
+<p>重要取舍（注释点明是「第三周假阳性教训的记忆版」）：<strong>不每轮调模型抽记忆</strong>（成本/延迟高、易假阳性），改用纯 regex 规则：</p>
+<ul>
+  <li><code>extract_topics</code>：12 个项目主题正则，命中计数（实际数据 <code>agent_loop:5, tool_calling:4, fallback:4</code> 就是这么累积的）。</li>
+  <li><code>extract_preference</code>：只在「记住/请记得/我喜欢/I prefer」等<strong>显式信号</strong>时捕获。</li>
+  <li><code>extract_fact_candidates</code>：<strong>只抽带 <code>[doc#section]</code> 引用的句子</strong>——引用即「已确认」。</li>
+</ul>
+
+<h3><code>memory/short_term.py</code> — 短期记忆</h3>
+<ul>
+  <li><code>ConversationTurn</code> = 一轮完整 user+assistant（<strong>不存中间工具结果</strong>，那是「可重新获取的原材料」，丢了最划算）。</li>
+  <li><strong>双闸门 <code>needs_eviction</code></strong>：超 <code>SHORT_TERM_K=3</code> 轮 <strong>或</strong> 最近 K 轮字符数超 <code>SHORT_TERM_CHAR_BUDGET=4000</code> → 触发 evict。</li>
+  <li>支持 snapshot/load，<strong>跨会话恢复对话</strong>。</li>
+</ul>
+
+<h3><code>memory/long_term.py</code> — 长期记忆（三类）</h3>
+<table>
+  <tr><th>类型</th><th>结构</th><th>写入时机</th><th>进 prompt 方式</th></tr>
+  <tr><td>偏好</td><td>key-value</td><td>显式信号</td><td>每轮全量</td></tr>
+  <tr><td>已确认事实</td><td>list[Fact] + 向量</td><td>带引用回答抽取</td><td><strong>语义召回 top-k</strong></td></tr>
+  <tr><td>主题兴趣</td><td>counter</td><td>每轮规则抽取</td><td>留接口（暂未加权进 prompt）</td></tr>
+</table>
+<p>事实存两份：json 存元数据，<code>namespace="memory_facts"</code> 向量库存向量，靠下标对齐。<code>recall_facts</code> 用 <code>MEMORY_FACTS_TOP_K=3</code> + <code>MEMORY_FACTS_MIN_SCORE=0.30</code> 做语义召回。</p>
+<div class="callout info">这就是「<strong>长期记忆 ≠ 聊天历史</strong>」的关键：不是把历史塞回去，而是按当前问题语义检索相关事实。</div>
+
+<h3><code>memory/summarizer.py</code> — 分层压缩</h3>
+<p>被 evict 的旧轮做两级处理：</p>
+<ol>
+  <li><strong>高保真</strong>：<code>extract_promoted_facts</code> 把带引用的事实晋升长期记忆（不丢失）</li>
+  <li><strong>低保真</strong>：<code>summarize_low_fidelity</code> 对剩下的过程性对话调一次模型，压成 ≤80 字摘要</li>
+</ol>
+<div class="callout">成本控制：事实抽取走规则（零成本），<strong>摘要只对 evict 旧轮调一次模型，不每轮调</strong>。累积摘要上限 1200 字符防膨胀。</div>
+
+<h3><code>memory/assembler.py</code> — ★ 上下文装配</h3>
+<p>固定 6 段顺序，<strong>越稳定/强约束越靠前</strong>：</p>
+<table>
+  <tr><th>段</th><th>内容</th><th>进出规则</th><th>预算(字符)</th></tr>
+  <tr><td>1</td><td>System prompt</td><td>永远在</td><td>固定</td></tr>
+  <tr><td>2</td><td>用户偏好</td><td>永远在（很小）</td><td>200</td></tr>
+  <tr><td>3</td><td>历史摘要</td><td>有则在，超预算保留最近</td><td>400</td></tr>
+  <tr><td>4</td><td>召回的长期事实</td><td>语义 top-k，按问题召回</td><td>800</td></tr>
+  <tr><td>5</td><td>最近 K 轮对话</td><td><strong>双闸门裁剪</strong></td><td>4000</td></tr>
+  <tr><td>6</td><td>当前问题</td><td>永远在</td><td>6000</td></tr>
+</table>
+<p>裁剪优先级：<strong>超预算时段 5 先裁 → 段 3/4 次之 → 段 1/2/6 不可裁</strong>。段 5 二次裁剪保留 user 全文（短且不可重生），只截断旧轮 assistant 到 200 字。装配完产出 <code>AssemblyReport</code>（在场/被裁/总字符/召回事实数）写进日志做可观测。</p>
+
+<!-- ============ 六 ============ -->
+<h2 class="sec" id="trace">六、可观测性 <code>trace.py</code></h2>
+<p>三层结构 <code>AgentTrace → TurnTrace → ToolCallTrace</code>，记录每轮决策、每次工具调用（含耗时、成功与否、retrieve 召回的 chunk）、纠正/降级是否触发。<code>summary()</code> 输出像 <code>[2轮 | 1340ms] retrieve_documents(✓) [检索纠正]</code> 的人类可读串，<code>to_dict/to_json</code> 进测试报告。这呼应了第 10 周「评测与可观测性」的铺垫。</p>
+
+<!-- ============ 七 ============ -->
+<h2 class="sec" id="highlights">七、值得注意的设计亮点 / 取舍</h2>
+<ul class="kpts">
+  <li><strong>记忆可插拔</strong>：测试无记忆保证可复现，交互/demo 带记忆，Agent Loop 统一处理两种情况。</li>
+  <li><strong>本地优先三重保险</strong>（Prompt + 工具顺序 + 规则纠正），且检索纠正优先于联网纠正。</li>
+  <li><strong>写入双通道</strong>：规则抽取（主题/事实，零成本）+ 模型显式（偏好/摘要）——刻意避免「每轮让模型抽记忆」的延迟与假阳性。</li>
+  <li><strong>引用即事实</strong>：只有带 <code>[doc#section]</code> 的回答才晋升长期记忆，把「引用约束」和「记忆质量」绑在一起。</li>
+  <li><strong>降级计数只算 fetch_webpage</strong>：RAG 配置类错误不污染 fallback 逻辑，边界处理到位。</li>
+</ul>
+
+<!-- ============ 八 ============ -->
+<h2 class="sec" id="seq">八、时序图：一次带记忆的查询</h2>
+<p>从入口到落盘的完整流程，分三个阶段：<strong>① 调模型前装配 → ② Agent Loop → ③ 调模型后更新记忆+落盘</strong>。</p>
+
+<div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as 用户 / main.py
+    participant AG as run_agent
+    participant MM as MemoryManager
+    participant AS as ContextAssembler
+    participant LT as LongTermMemory
+    participant ST as ShortTermMemory
+    participant EMB as Embedding API
+    participant VS as VectorStore
+    participant LLM as LLM (qwen-plus)
+    participant TL as execute_tool
+    participant RT as Retriever (RAG)
+    participant SM as Summarizer
+
+    U->>AG: run_agent(user_msg, memory)
+
+    rect rgb(225,240,255)
+    Note over AG,VS: ① 调模型前 —— 六段上下文装配
+    AG->>MM: assemble_context(user_msg, SYSTEM_PROMPT)
+    MM->>AS: assemble(...)
+    AS->>AS: 段1 system / 段2 偏好 / 段3 摘要
+    AS->>LT: recall_facts(user_msg)
+    LT->>EMB: embed_query(user_msg)
+    EMB-->>LT: 查询向量(1024d, 归一化)
+    LT->>VS: search(q_vec, top_k=3) [memory_facts]
+    VS-->>LT: 命中事实 (score>=0.30)
+    LT-->>AS: 段4 召回事实
+    AS->>ST: recent(k=3)
+    ST-->>AS: 段5 最近K轮(双闸门裁剪)
+    AS->>AS: 段6 当前问题 + 总预算审计
+    AS-->>MM: (messages, AssemblyReport)
+    MM-->>AG: messages
+    end
+
+    rect rgb(228,250,230)
+    Note over AG,RT: ② Agent Loop (最多 6 轮)
+    loop 每一轮 turn
+        AG->>LLM: chat.completions.create(messages, tools)
+        alt finish == "tool_calls"
+            LLM-->>AG: 要调用工具
+            AG->>TL: execute_tool(name, args)
+            alt retrieve_documents (本地优先)
+                TL->>RT: retrieve(query, top_k)
+                RT->>EMB: embed_query(query)
+                EMB-->>RT: 查询向量
+                RT->>VS: search(docs) + 阈值过滤
+                VS-->>RT: top-k chunks(doc/section/score)
+                RT-->>TL: chunks
+            else web_search / fetch_webpage (联网兜底)
+                TL-->>TL: DuckDuckGo / httpx 抓正文
+            end
+            TL-->>AG: tool result(统一结构)
+            AG->>AG: 记 trace; fetch连续失败>=2 注入降级
+        else finish == "stop"
+            LLM-->>AG: 想直接回答
+            AG->>AG: 未碰工具? 查 should_have_retrieved / should_have_searched
+            Note right of AG: 命中则注入纠正(各最多1次)->continue,否则结束
+        end
+    end
+    end
+
+    rect rgb(255,245,225)
+    Note over AG,SM: ③ 调模型后 —— 更新记忆 + 落盘
+    AG->>MM: update_from_turn(user_msg, answer, trace)
+    MM->>LT: bump_topics(规则抽取主题)
+    MM->>LT: set_preference(若有显式信号)
+    MM->>MM: extract_fact_candidates(带[doc#section])
+    MM->>EMB: embed_texts(事实候选)
+    EMB-->>MM: 事实向量
+    MM->>LT: add_fact(json + memory_facts 向量库)
+    MM->>ST: add_turn(本轮 ConversationTurn)
+    opt 超K轮或超字符预算 (needs_eviction)
+        MM->>SM: summarize_low_fidelity(超窗旧轮)
+        SM->>LLM: 压成 <=80字摘要(仅对evict旧轮调一次)
+        LLM-->>SM: 摘要
+        SM-->>MM: append_summary
+        MM->>ST: evict 旧轮, 仅留最近 K 轮
+    end
+    MM->>LT: save() prefs/facts/topics + 向量库
+    MM->>SM: save() summary.json
+    MM->>ST: snapshot -> memory_short_term.json
+    end
+
+    AG-->>U: (answer, trace)
+</div>
+
+<h3 id="seq-text">纯文本版（备份 / 离线可读）</h3>
+<pre><code>用户/CLI ──run_agent(msg, memory)──▶ run_agent
+                                       │
+┌──────────────────────────────────────┴─ ① 装配 (调模型前) ──────────────────┐
+│  run_agent → MemoryManager.assemble_context → ContextAssembler.assemble      │
+│     段1 system prompt        (永远在)                                         │
+│     段2 用户偏好             ← LongTerm.preferences      (永远在, ≤200字)      │
+│     段3 历史摘要             ← Summarizer.summary_text   (有则在, ≤400字)      │
+│     段4 召回长期事实         ← embed_query(msg) → memory_facts向量库.search    │
+│                               (top_k=3, score≥0.30, ≤800字)                  │
+│     段5 最近K轮对话          ← ShortTerm.recent(3)       (双闸门裁剪, ≤4000字) │
+│     段6 当前问题             (永远在)                                          │
+│   ⇒ 返回 messages + AssemblyReport(在场/被裁/字符数/召回数)                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                       │ messages
+┌──────────────────────────────────────┴─ ② Agent Loop (≤6 轮) ────────────────┐
+│  while turn < MAX_TURNS:                                                       │
+│    LLM.create(messages, tools)                                                │
+│    ├─ finish=="tool_calls":                                                   │
+│    │     execute_tool()                                                       │
+│    │       ├─ retrieve_documents → Retriever.retrieve                         │
+│    │       │     → embed_query → docs向量库.search → 阈值0.30过滤 → chunks     │
+│    │       └─ web_search / fetch_webpage → DuckDuckGo / httpx                 │
+│    │     结果塞回 messages；记 trace                                           │
+│    │     fetch 连续失败≥2 → 注入 FALLBACK_MESSAGE                              │
+│    └─ finish=="stop":                                                         │
+│          若"从未碰过工具": 查 should_have_retrieved → 注入检索纠正(优先)        │
+│                            否则 should_have_searched → 注入搜索纠正            │
+│                            (各最多1次, 注入后 continue)                        │
+│          否则 → 正常结束, 拿到 answer                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                       │ answer
+┌──────────────────────────────────────┴─ ③ 更新记忆 + 落盘 (调模型后) ─────────┐
+│  MemoryManager.update_from_turn(msg, answer, trace)                           │
+│    1. extract_topics  → LongTerm.bump_topics            (规则, 零成本)         │
+│    2. extract_preference → LongTerm.set_preference      (仅"记住/我喜欢"信号)  │
+│    3. extract_fact_candidates(带[doc#section]) → embed_texts → add_fact        │
+│                                       (json + memory_facts 向量库)             │
+│    4. ShortTerm.add_turn(本轮)                                                │
+│    5. needs_eviction? → Summarizer.summarize_low_fidelity (LLM一次) → evict   │
+│    6. save: prefs/facts/topics/向量库 + summary.json + short_term.json         │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                       │
+用户/CLI ◀──────── (answer, trace) ────┘</code></pre>
+
+<h3 id="seq-keys">看图要抓的三个关键点</h3>
+<ol class="kpts">
+  <li><strong>Embedding API 被调用三次、目的各不同</strong>：装配段4（召回事实，查 <code>memory_facts</code>）、Loop 内 <code>retrieve_documents</code>（查 <code>docs</code> 文档库）、更新阶段事实入库——同一接口服务三条数据流。</li>
+  <li><strong>LLM 在一次查询里可能被调多次</strong>：Agent Loop 每轮一次（含纠正注入的额外轮次），结尾若触发 evict 还会为摘要单独调一次——但摘要<strong>只对被裁旧轮调，不每轮调</strong>，这是成本控制的核心。</li>
+  <li><strong>记忆的「读」和「写」分居模型调用前后</strong>：装配（读）在前，<code>update_from_turn</code>（写+落盘）在后，中间夹 Agent Loop——这就是「上下文工程」相对「模型自己记住」的本质：<strong>全靠这两端的工程动作</strong>。</li>
+</ol>
+
+<footer>
+  <p><a class="toplink" href="#">↑ 回到顶部</a></p>
+  <p>Week 4&amp;5 · search_agent v3.0 代码分析 · 时序图基于 Mermaid 渲染（需联网加载 CDN；离线时请看上方纯文本版）。</p>
+</footer>
+
+</main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose',
+    sequence: { actorMargin: 36, width: 150, mirrorActors: false, showSequenceNumbers: true } });
+</script>
+</body>
+</html>
