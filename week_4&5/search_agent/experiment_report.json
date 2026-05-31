@@ -1,0 +1,646 @@
+{
+  "title": "第五周复盘综合实验报告",
+  "model": "qwen-plus",
+  "embedding_model": "text-embedding-v3",
+  "results": {
+    "E7": {
+      "v2.0_week3": {
+        "py_files": 6,
+        "py_lines": 1367,
+        "config_constants": 8,
+        "file_names": [
+          "agent.py",
+          "checks.py",
+          "config.py",
+          "main.py",
+          "tools.py",
+          "trace.py"
+        ]
+      },
+      "v3.0_week45": {
+        "py_files": 19,
+        "py_lines": 3954,
+        "config_constants": 33,
+        "new_modules": [
+          "rag/(ingest,embed,store,retriever)",
+          "memory/(manager,short_term,long_term,assembler,summarizer,extractor)"
+        ]
+      },
+      "_ok": true,
+      "_seconds": 0.0
+    },
+    "E1": {
+      "返回维度": 1024,
+      "维度符合EMBEDDING_DIM": true,
+      "是否L2归一化": true,
+      "归一化范数样本": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "单批3条延迟ms": 592,
+      "批量23条返回数": 23,
+      "批量分批正确": true,
+      "embed_query形状": [
+        1024
+      ],
+      "_ok": true,
+      "_seconds": 2.0
+    },
+    "E2a": {
+      "n": 15,
+      "hit@1": "13/15 (87%)",
+      "hit@3": "14/15 (93%)",
+      "hit@5": "15/15 (100%)",
+      "hit@1_raw": 13,
+      "hit@3_raw": 14,
+      "hit@5_raw": 15,
+      "mean_top1_score": 0.7642,
+      "per_query": [
+        {
+          "query": "Agent Loop 连续失败计数是怎么重置的？",
+          "expected": "Agent_Loop_设计笔记",
+          "top1_doc": "Agent_Loop_设计笔记",
+          "top1_score": 0.822,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "should_have_searched 规则引擎的上限在哪里？",
+          "expected": "Agent_Loop_设计笔记",
+          "top1_doc": "Agent_Loop_设计笔记",
+          "top1_score": 0.8361,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "决策审查 检查机制 假阳性问题怎么修",
+          "expected": "Agent_Loop_设计笔记",
+          "top1_doc": "Agent_Loop_设计笔记",
+          "top1_score": 0.7472,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "Agent Loop 三个控制点的设计取舍",
+          "expected": "Agent_Loop_设计笔记",
+          "top1_doc": "Agent_Loop_设计笔记",
+          "top1_score": 0.7818,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "json_schema strict 模式实验结论",
+          "expected": "实验结论",
+          "top1_doc": "实验结论",
+          "top1_score": 0.8064,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "json_object 模式实验观察到什么",
+          "expected": "实验结论",
+          "top1_doc": "实验结论",
+          "top1_score": 0.7671,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "第二周 工具调用 单 Agent 雏形",
+          "expected": "第二周学习复盘",
+          "top1_doc": "第二周学习复盘",
+          "top1_score": 0.8873,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "fetch_webpage 反爬 403 Medium 失败",
+          "expected": "第二周学习复盘",
+          "top1_doc": "README",
+          "top1_score": 0.6295,
+          "hit@1": false,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "第三周 结构化输出 提示词工程 复盘",
+          "expected": "第三周学习复盘",
+          "top1_doc": "第三周学习复盘",
+          "top1_score": 0.7727,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "RAG chunking 按标题切分策略怎么定的",
+          "expected": "第四五周整合设计_RAG与记忆系统",
+          "top1_doc": "第四五周整合设计_RAG与记忆系统",
+          "top1_score": 0.7125,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "embedding 与向量存储 设计选型",
+          "expected": "第四五周整合设计_RAG与记忆系统",
+          "top1_doc": "第四五周整合设计_RAG与记忆系统",
+          "top1_score": 0.7346,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "记忆系统 短期 长期 分层设计",
+          "expected": "第四五周整合设计_RAG与记忆系统",
+          "top1_doc": "第四五周整合设计_RAG与记忆系统",
+          "top1_score": 0.7324,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "上下文装配 六段顺序 预算",
+          "expected": "第四五周整合设计_RAG与记忆系统",
+          "top1_doc": "第四五周整合设计_RAG与记忆系统",
+          "top1_score": 0.7302,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "为什么 RAG 先做 记忆后做",
+          "expected": "第四五周整合设计_RAG与记忆系统",
+          "top1_doc": "第四五周整合设计_RAG与记忆系统",
+          "top1_score": 0.7568,
+          "hit@1": true,
+          "hit@3": true,
+          "hit@5": true
+        },
+        {
+          "query": "Week 2 Demo 功能 工具设计 已知问题",
+          "expected": "README",
+          "top1_doc": "第二周学习复盘",
+          "top1_score": 0.7458,
+          "hit@1": false,
+          "hit@3": false,
+          "hit@5": true
+        }
+      ],
+      "store_size": 100,
+      "min_score_threshold": 0.3,
+      "_ok": true,
+      "_seconds": 3.3
+    },
+    "E2c": {
+      "文件层隔离": true,
+      "docs持久化文件": "docs_vectors.npy",
+      "memory持久化文件": "memory_facts_vectors.npy",
+      "现有docs库chunks": 100,
+      "现有memory_facts条数": 17,
+      "毒事实只进docs不进memory": true,
+      "说明": "两个 namespace = 两套独立 .npy/.json 文件，按前缀分离，检索互不可见",
+      "_ok": true,
+      "_seconds": 0.5
+    },
+    "E2b": {
+      "by_heading": {
+        "chunks": 100,
+        "avg_chunk_chars": 395.0,
+        "hit@1": "13/15 (87%)",
+        "hit@3": "14/15 (93%)",
+        "hit@5": "15/15 (100%)",
+        "mean_top1_score": 0.7642
+      },
+      "by_chars": {
+        "chunks": 94,
+        "avg_chunk_chars": 389.0,
+        "window": "size=400 overlap=80",
+        "hit@1": "8/15 (53%)",
+        "hit@3": "9/15 (60%)",
+        "hit@5": "10/15 (67%)",
+        "mean_top1_score": 0.6831
+      },
+      "_ok": true,
+      "_seconds": 8.0
+    },
+    "E3": {
+      "场景": "段3旧摘要说500 vs 段6本轮检索说1500，看模型跟随哪个",
+      "conditions": {
+        "A_显式以最新为准": {
+          "跟随新检索": "3/3",
+          "trials": [
+            {
+              "trial": 1,
+              "verdict": "新检索(1500)",
+              "answer": "1500（来源：[doc=config#section=RAG常量]）"
+            },
+            {
+              "trial": 2,
+              "verdict": "新检索(1500)",
+              "answer": "1500（来源：[doc=config#section=RAG常量]）"
+            },
+            {
+              "trial": 3,
+              "verdict": "新检索(1500)",
+              "answer": "1500（来源：[doc=config#section=RAG常量]）"
+            }
+          ]
+        },
+        "B_中性指令": {
+          "跟随新检索": "3/3",
+          "trials": [
+            {
+              "trial": 1,
+              "verdict": "新检索(1500)",
+              "answer": "1500 [doc=config#section=RAG常量]"
+            },
+            {
+              "trial": 2,
+              "verdict": "新检索(1500)",
+              "answer": "1500 [doc=config#section=RAG常量]"
+            },
+            {
+              "trial": 3,
+              "verdict": "新检索(1500)",
+              "answer": "1500 [doc=config#section=RAG常量]"
+            }
+          ]
+        }
+      },
+      "_ok": true,
+      "_seconds": 4.5
+    },
+    "E4": {
+      "短期双闸门": {
+        "K": 3,
+        "字符预算": 4000,
+        "注入轮数": 5,
+        "evict后保留轮数": 3,
+        "裁剪到K正确": true
+      },
+      "偏好捕获": {
+        "以后回答先列结论再列引用": "以后回答先列结论再列引用"
+      },
+      "晋升长期事实数": 4,
+      "主题Top5": [
+        [
+          "embedding",
+          4
+        ],
+        [
+          "rag",
+          3
+        ],
+        [
+          "memory",
+          3
+        ],
+        [
+          "agent_loop",
+          1
+        ],
+        [
+          "chunking",
+          1
+        ]
+      ],
+      "摘要已产生": true,
+      "摘要内容": "第三周连续失败需重置计数器，成功后自动清零。\n\n用户要求助手今后回答先列结论再列引用，助手已确认记住该偏好。",
+      "事实语义召回": [
+        {
+          "fact": "连续失败计数器成功即重置 。",
+          "score": 0.6861
+        },
+        {
+          "fact": "按 Markdown 标题切，超长再滑窗 。",
+          "score": 0.4753
+        },
+        {
+          "fact": "用 text-embedding-v3，1024 维 。",
+          "score": 0.4465
+        }
+      ],
+      "召回命中相关事实": true,
+      "_ok": true,
+      "_seconds": 2.7
+    },
+    "E5": {
+      "轮数": 4,
+      "per_turn": [
+        {
+          "turn": 1,
+          "query": "我们第三周的 Agent Loop 是怎么处理工具连续失败的？",
+          "segments_present": [
+            "system",
+            "current"
+          ],
+          "segments_trimmed": [],
+          "context_chars": 1390,
+          "facts_recalled": 0,
+          "trace": "[2轮 | 11872ms] retrieve_documents(✓)",
+          "retrieved": true,
+          "searched": false,
+          "answer_preview": "根据本地文档，第三周的 Agent Loop 对工具连续失败的处理机制如下：\n\n- **引入了连续失败计数器（`consecutive_errors`）**：当工具调用返回错误时，计数器加 1；一旦有任意一次工具调用成功，计数器立即重置为 "
+        },
+        {
+          "turn": 2,
+          "query": "请记住：以后回答涉及本地文档时，先列结论再列引用。",
+          "segments_present": [
+            "system",
+            "facts",
+            "recent",
+            "current"
+          ],
+          "segments_trimmed": [],
+          "context_chars": 2908,
+          "facts_recalled": 3,
+          "trace": "[3轮 | 12708ms] retrieve_documents(✓) [检索纠正]",
+          "retrieved": true,
+          "searched": false,
+          "answer_preview": "根据本地知识库检索结果，第三周 Agent Loop 对工具连续失败的处理机制如下：\n\n- **采用“成功即重置”的计数策略**：`consecutive_errors` 计数器在工具调用失败时加 1，但只要任意一次工具调用成功，就立即重置"
+        },
+        {
+          "turn": 3,
+          "query": "刚才那个连续失败机制里，consecutive_errors 是怎么重置的？",
+          "segments_present": [
+            "system",
+            "preferences",
+            "facts",
+            "recent",
+            "current"
+          ],
+          "segments_trimmed": [],
+          "context_chars": 3750,
+          "facts_recalled": 3,
+          "trace": "[1轮 | 4611ms] 无工具调用",
+          "retrieved": false,
+          "searched": false,
+          "answer_preview": "`consecutive_errors` 是在**任意一次工具调用成功时立即重置为 0**。\n\n这不是基于时间、轮次或阈值的周期性重置，而是严格的“成功即重置”策略：只要 `tool_calls` 执行返回非错误响应（即工具调用成功），无论"
+        },
+        {
+          "turn": 4,
+          "query": "另外简单说一下，本项目的 RAG chunking 是按什么切的？",
+          "segments_present": [
+            "system",
+            "preferences",
+            "facts",
+            "recent",
+            "current"
+          ],
+          "segments_trimmed": [],
+          "context_chars": 4026,
+          "facts_recalled": 3,
+          "trace": "[3轮 | 14564ms] retrieve_documents(✓) [检索纠正]",
+          "retrieved": true,
+          "searched": false,
+          "answer_preview": "根据本地知识库检索结果，本项目的 RAG chunking 策略如下：\n\n- **优先按 Markdown 结构切分**：以标题（如 `## 控制点 2：执行保护`）和自然段落为基本单位，而非简单按固定 token 数硬切；因项目语料（技术"
+        }
+      ],
+      "平均装配上下文字符": 3018.0,
+      "平均装配上下文token估算": 1887.0,
+      "demo后记忆状态": {
+        "short_term_turns": 3,
+        "preferences": {
+          "以后回答涉及本地文档时，先列结论再列引用": "以后回答涉及本地文档时，先列结论再列引用"
+        },
+        "facts": 10,
+        "topics_top5": [
+          [
+            "agent_loop",
+            4
+          ],
+          [
+            "tool_calling",
+            3
+          ],
+          [
+            "fallback",
+            3
+          ],
+          [
+            "rag",
+            2
+          ],
+          [
+            "chunking",
+            2
+          ]
+        ],
+        "summary_chars": 45
+      },
+      "偏好是否在第2轮后生效": true,
+      "_ok": true,
+      "_seconds": 46.4
+    },
+    "E6": {
+      "total_cases": 8,
+      "passed": 7,
+      "pass_rate": "7/8 (88%)",
+      "avg_turns": 1.88,
+      "avg_duration_ms": 10666.0,
+      "citation_accuracy": "3/4 (75%)",
+      "search_correction_count": 0,
+      "retrieval_correction_count": 0,
+      "fallback_count": 0,
+      "results": [
+        {
+          "id": 1,
+          "query": "2024年诺贝尔物理学奖颁给了谁？",
+          "category": "factual_time",
+          "expect_search": true,
+          "expect_retrieve": false,
+          "actual_search": true,
+          "actual_retrieve": false,
+          "passed": true,
+          "turns": 2,
+          "duration_ms": 8301,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": null,
+          "answer_preview": "2024年诺贝尔物理学奖 jointly 授予了：\n\n- **约翰·J·霍普菲尔德（John J. Hopfield）**，美国物理学家与神经科学家；  \n- **杰弗里·E·辛顿（Geoffrey E. Hinton）**，英国-加拿大计算机科学家与认知心理学家。\n\n获奖理由是：**“为机器学习中人工神经网络的基础性"
+        },
+        {
+          "id": 2,
+          "query": "写一首关于春天的五言绝句",
+          "category": "creative",
+          "expect_search": false,
+          "expect_retrieve": false,
+          "actual_search": false,
+          "actual_retrieve": false,
+          "passed": true,
+          "turns": 1,
+          "duration_ms": 1995,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": null,
+          "answer_preview": "好的，这是一首为您创作的关于春天的五言绝句：\n\n《春晓即事》\n风软柳初黄，  \n莺梭桃欲燃。  \n稚子追蝶去，  \n笑落一庭烟。\n\n*   **注**：此诗为原创，不涉及任何外部知识或工具调用。"
+        },
+        {
+          "id": 3,
+          "query": "帮我算一下 234 × 567",
+          "category": "math",
+          "expect_search": false,
+          "expect_retrieve": false,
+          "actual_search": false,
+          "actual_retrieve": false,
+          "passed": true,
+          "turns": 1,
+          "duration_ms": 712,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": null,
+          "answer_preview": "234 × 567 = 132,678"
+        },
+        {
+          "id": 4,
+          "query": "我们第三周的 Agent Loop 是怎么处理工具连续失败的？",
+          "category": "rag_internal",
+          "expect_search": false,
+          "expect_retrieve": true,
+          "actual_search": false,
+          "actual_retrieve": true,
+          "passed": true,
+          "turns": 2,
+          "duration_ms": 14021,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": {
+            "citations_found": 4,
+            "cited_docs": [
+              "Agent_Loop_设计笔记",
+              "README",
+              "第三周学习复盘"
+            ],
+            "retrieved_docs": [
+              "Agent_Loop_设计笔记",
+              "README",
+              "第三周学习复盘",
+              "第二周学习复盘"
+            ],
+            "valid_citation": true
+          },
+          "answer_preview": "根据本地文档，第三周的 Agent Loop 对工具连续失败的处理机制如下：\n\n- **引入了连续失败计数器**：Agent Loop 会跟踪工具调用的连续错误次数。一旦某次执行成功（即 `is_error` 为假），计数器立即重置为 0；只有在连续多次失败时才会触发保护动作 `[Agent_Loop_设计笔记#二、三"
+        },
+        {
+          "id": 5,
+          "query": "在我们的设计里，should_have_searched 用了哪些规则？",
+          "category": "rag_internal",
+          "expect_search": false,
+          "expect_retrieve": true,
+          "actual_search": false,
+          "actual_retrieve": true,
+          "passed": true,
+          "turns": 2,
+          "duration_ms": 12299,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": {
+            "citations_found": 5,
+            "cited_docs": [
+              "Agent_Loop_设计笔记",
+              "第三周学习复盘"
+            ],
+            "retrieved_docs": [
+              "Agent_Loop_设计笔记",
+              "README",
+              "第三周学习复盘",
+              "第二周学习复盘"
+            ],
+            "valid_citation": true
+          },
+          "answer_preview": "根据本地知识库检索结果，`should_have_searched` 的规则设计如下：\n\n- `should_have_searched()` 是一个**基于关键词和正则的启发式规则函数**，不依赖语义理解，仅对用户输入消息进行静态模式匹配 `[Agent_Loop_设计笔记#五、未解决的问题（留给后续周次）> Q1："
+        },
+        {
+          "id": 6,
+          "query": "本项目第四周的 RAG 是怎么决定 chunking 策略的？",
+          "category": "rag_internal",
+          "expect_search": false,
+          "expect_retrieve": true,
+          "actual_search": false,
+          "actual_retrieve": true,
+          "passed": true,
+          "turns": 2,
+          "duration_ms": 11755,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": {
+            "citations_found": 5,
+            "cited_docs": [
+              "doc",
+              "第四五周整合设计_RAG与记忆系统"
+            ],
+            "retrieved_docs": [
+              "第三周学习复盘",
+              "第四五周整合设计_RAG与记忆系统"
+            ],
+            "valid_citation": true
+          },
+          "answer_preview": "根据本地知识库检索结果，本项目第四周的 RAG chunking 策略决策如下：\n\n- **核心原则是优先按语义结构切分**：鉴于项目自身笔记（如设计文档、复盘记录）结构化程度高，明确选择「按 markdown 标题、段落」进行切分，而非简单按固定 token 数量硬切。因为按标题切分能更好地保持语义完整性 `[第四五"
+        },
+        {
+          "id": 7,
+          "query": "我之前的笔记里，URL 黑名单是怎么用的？",
+          "category": "rag_internal",
+          "expect_search": false,
+          "expect_retrieve": true,
+          "actual_search": false,
+          "actual_retrieve": true,
+          "passed": true,
+          "turns": 2,
+          "duration_ms": 9713,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": {
+            "citations_found": 4,
+            "cited_docs": [
+              "week_2/docs/第二周学习复盘.md",
+              "week_2/search_agent/README.md"
+            ],
+            "retrieved_docs": [
+              "README",
+              "第三周学习复盘",
+              "第二周学习复盘",
+              "第四五周整合设计_RAG与记忆系统"
+            ],
+            "valid_citation": false
+          },
+          "answer_preview": "根据你的本地笔记，URL 黑名单目前处于**设计规划阶段，尚未实际实现**，其用途和用法如下：\n\n- URL 黑名单是为 `fetch_webpage` 工具设计的**预检测机制**，目标是在抓取前快速跳过已知不可访问的网站（如 Medium 等有反爬机制的站点），避免因 403 错误浪费 Agent Loop 轮次["
+        },
+        {
+          "id": 8,
+          "query": "MCP 协议是什么？",
+          "category": "tech_concept",
+          "expect_search": true,
+          "expect_retrieve": false,
+          "actual_search": true,
+          "actual_retrieve": true,
+          "passed": false,
+          "turns": 3,
+          "duration_ms": 26534,
+          "retrieval_correction": false,
+          "search_correction": false,
+          "fallback": false,
+          "citation": null,
+          "answer_preview": "根据联网搜索结果，**MCP（Model Context Protocol）** 是一个由 Anthropic 于 2024 年 11 月正式推出的**开源协议与框架**，旨在为大语言模型（LLM）应用提供标准化的上下文接入与工具集成能力。\n\n核心要点如下（信息来源：[modelcontextprotocol.io]("
+        }
+      ],
+      "_ok": true,
+      "_seconds": 85.3
+    }
+  },
+  "finished_at": "2026-05-31T17:35:45.446244"
+}
