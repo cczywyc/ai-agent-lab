@@ -1,0 +1,33 @@
+[
+  {
+    "turn_number": 2,
+    "user_message": "请记住：以后回答涉及本地文档时，先列结论再列引用。",
+    "assistant_message": "第三周的 Agent Loop 通过以下三项机制协同处理工具连续失败：\n\n1. **引入 `consecutive_errors` 计数器，并采用“成功即重置”策略**：每次工具调用返回错误时计数器递增；一旦任一工具调用成功（无论是否为同一工具），计数器立即清零 `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`。\n\n2. **将连续失败作为触发降级的核心条件**：当 `consecutive_errors` 达到预设阈值（如 ≥2），Loop 主动介入，不再等待模型自行决策，而是强制执行降级动作（例如跳过 `fetch_webpage`，转而基于 `web_search` 返回的 snippet 直接生成回答）`[README#Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > Agent 实现层面]`。\n\n3. **要求 Loop 层主动解析工具返回的结构化错误元数据**：新版设计明确要求 Agent Loop 解析工具响应中的 `recoverable` 和 `suggestion` 字段，而非仅依赖模型理解 JSON；此举使错误恢复逻辑更可靠、可调试，是实现上述降级策略的技术前提 `[第二周学习复盘#第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式 > 当前实现的不足（本周发现）]`。",
+    "tool_summaries": [
+      "retrieve_documents(✓)"
+    ],
+    "used_retrieve": true,
+    "used_search": false,
+    "timestamp": 1780563089.349697
+  },
+  {
+    "turn_number": 3,
+    "user_message": "刚才那个连续失败机制里，consecutive_errors 是怎么重置的？",
+    "assistant_message": "`consecutive_errors` 采用 **“成功即重置”策略**：  \n✅ 只要**任一工具调用成功**（无论调用的是 `retrieve_documents`、`web_search` 还是 `fetch_webpage`），该计数器就**立即清零为 0**；  \n❌ 不依赖是否同一工具、不等待轮次结束、不按时间或滑动窗口衰减。\n\n该设计明确排除了“仅同一工具成功才重置”或“需连续多次成功才重置”等更复杂逻辑，以匹配搜索 Agent 的典型线性流程（如 `web_search` 成功 → `fetch_webpage` 失败 → 但因前一步已成功，计数器归零，避免误触发降级）。\n\n> 引用来源：  \n> - `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`（第2轮）  \n> - `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`（第1轮）",
+    "tool_summaries": [],
+    "used_retrieve": false,
+    "used_search": false,
+    "timestamp": 1780563097.1993542
+  },
+  {
+    "turn_number": 4,
+    "user_message": "另外简单说一下，本项目的 RAG chunking 是按什么切的？",
+    "assistant_message": "本项目的 RAG chunking 采用 **「按结构切」为主、语义完整性优先的策略**，具体如下：\n\n- **核心切分依据是文档的 Markdown 结构**：优先在标题（`#`, `##`, `###`）、段落边界、代码块或列表项之间进行切分，而非固定字符数或 Token 数；因为本地知识库（如设计笔记、复盘文档）本身结构化程度高，按结构切能最大程度保留语义单元的完整性 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **每个 chunk 必须携带完整元数据**：包括 `doc`（源文件名）、`section`（标题路径，如 `第三周学习复盘 > 六、对后续 Roadmap 的思考 > 第四周（RAG）`）、`chunk_id`（序号）和 `text`（正文），其中 `section` 和 `chunk_id` 是实现“引用约束”（即回答中可精准标注来源）的技术前提 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **未采用纯语义分块（如 sentence-transformer 动态聚类）**：当前阶段明确选择结构化切分作为起点，因其更可控、可调试、且与本地笔记格式高度匹配；而“固定大小 + 重叠”的方案仅作为起步备选，非主策略 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。",
+    "tool_summaries": [
+      "retrieve_documents(✓)"
+    ],
+    "used_retrieve": true,
+    "used_search": false,
+    "timestamp": 1780563116.1945183
+  }
+]
