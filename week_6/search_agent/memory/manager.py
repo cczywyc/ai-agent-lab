@@ -1,15 +1,21 @@
 """
 MemoryManager — 顶层协调
 
-对 agent.py 的暴露面只有两个方法：
-  - assemble_context(user_message, system_prompt) → (messages, AssemblyReport)
-  - update_from_turn(user_message, assistant_message, trace) → None
+对节点层的暴露面只有两个方法（v4.1 起都多收一个 store 入参）：
+  - assemble_context(user_message, system_prompt, store) → (messages, AssemblyReport)
+  - update_from_turn(user_message, assistant_message, trace, store) → None
 
 内部职责：
-  1. 协调 short_term / long_term / summarizer / assembler
+  1. 协调 short_term / long_term(=store 操作) / summarizer / assembler
   2. 每轮规则抽取主题、偏好、事实候选
   3. 在 needs_eviction 时调摘要、做事实晋升、evict 旧轮
-  4. 持久化（每轮结束）
+  4. 持久化（每轮结束；v4.1 起只剩短期 + 摘要——长期记忆由 store 后端自管）
+
+v4.0 → v4.1：
+  - 长期记忆三类的读写经 LangGraph Store（store 由 LangGraph 节点注入，
+    或 main 入口用 get_ltm_store() 取单例传入）
+  - 删除长期记忆对 embed_query/embed_texts 的用法（rag.embed 仍被 rag 文档检索用）
+  - 短期 + 摘要 + extractor 不动
 """
 
 from __future__ import annotations
@@ -18,16 +24,18 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from langgraph.store.base import BaseStore
+
 from config import (
     SHORT_TERM_K, SHORT_TERM_CHAR_BUDGET,
     SUMMARY_TRIGGER_TURNS, MEMORY_DIR,
 )
-from rag.embed import embed_query
+from . import long_term
 from .assembler import AssemblyReport, ContextAssembler
 from .extractor import (
     extract_topics, extract_preference, extract_fact_candidates,
 )
-from .long_term import Fact, LongTermMemory
+from .long_term import Fact
 from .short_term import ConversationTurn, ShortTermMemory
 from .summarizer import MemorySummarizer
 
@@ -47,13 +55,10 @@ class MemoryManager:
         self.short = ShortTermMemory(
             k=SHORT_TERM_K, char_budget=SHORT_TERM_CHAR_BUDGET,
         )
-        self.long = LongTermMemory(persist_dir=self.persist_dir)
         self.summarizer = MemorySummarizer(persist_dir=self.persist_dir)
         self.assembler = ContextAssembler(
-            long_term=self.long,
             short_term=self.short,
             summary_text_getter=lambda: self.summarizer.summary_text,
-            embed_query_fn=embed_query,
         )
 
         if autoload:
@@ -63,9 +68,9 @@ class MemoryManager:
     # 装配：每轮 LLM 调用前
     # ============================================================
     def assemble_context(
-        self, user_message: str, system_prompt: str,
+        self, user_message: str, system_prompt: str, store: BaseStore,
     ) -> tuple[list[dict], AssemblyReport]:
-        return self.assembler.assemble(user_message, system_prompt)
+        return self.assembler.assemble(user_message, system_prompt, store)
 
     # ============================================================
     # 更新：每轮 LLM 调用后
@@ -74,31 +79,32 @@ class MemoryManager:
         self,
         user_message: str,
         assistant_message: str,
-        trace,  # AgentTrace（避免引入硬依赖，用 duck typing）
+        trace,  # AgentTrace duck typing（v4.0 起为节点构造的 shim）
+        store: BaseStore,
     ) -> None:
         """
         每轮结束时调用。完成：
-          1. 主题计数（user_message + assistant_message）
-          2. 偏好显式信号识别
-          3. 事实候选抽取并写入长期记忆（带向量）
+          1. 主题计数（user_message + assistant_message）→ store
+          2. 偏好显式信号识别 → store
+          3. 事实候选抽取并写入长期记忆（store 自建语义索引）
           4. 把本轮加进短期记忆
           5. 必要时触发摘要 + evict
-          6. 持久化
+          6. 持久化（短期 + 摘要；长期由 store 后端自管）
         """
         turn_no = self.short.next_turn_number()
 
         # 1. 主题
         topics = extract_topics(user_message) + extract_topics(assistant_message)
         if topics:
-            self.long.bump_topics(topics)
+            long_term.bump_topics(store, topics)
 
         # 2. 偏好
         pref = extract_preference(user_message)
         if pref:
-            self.long.set_preference(pref["key"], pref["value"])
+            long_term.set_preference(store, pref["key"], pref["value"])
 
-        # 3. 已确认事实（仅当回答带 [doc#section] 引用）
-        self._extract_and_store_facts(assistant_message, turn_no)
+        # 3. 已确认事实（仅当回答带 [doc#section] 引用；不再手动 embed）
+        self._extract_and_store_facts(assistant_message, turn_no, store)
 
         # 4. 加入短期记忆
         tool_summaries = self._summarize_tools(trace)
@@ -119,32 +125,19 @@ class MemoryManager:
         self.save()
 
     # ============================================================
-    # 私有：事实抽取 + 向量化
+    # 私有：事实抽取（向量化由 store 接管）
     # ============================================================
-    def _extract_and_store_facts(self, answer: str, turn_no: int) -> None:
+    def _extract_and_store_facts(
+        self, answer: str, turn_no: int, store: BaseStore,
+    ) -> None:
         candidates = extract_fact_candidates(answer)
         if not candidates:
             return
 
-        # 批量 embed 一次，避免每条 fact 单独调 API
-        texts = [fact for fact, _src in candidates]
-        try:
-            from rag.embed import embed_texts
-            vectors = embed_texts(texts)
-        except Exception as e:
-            logger.warning(
-                f"Embed fact candidates failed: {e}. "
-                f"Storing facts without vectors (not semantically recallable)."
-            )
-            vectors = None
-
-        for i, (fact_text, source) in enumerate(candidates):
-            f = Fact(fact=fact_text, source=source, turn=turn_no)
-            v = vectors[i] if vectors is not None else None
-            self.long.add_fact(f, vector=v)
-
-        if candidates:
-            logger.info(f"Promoted {len(candidates)} facts to long-term (turn {turn_no})")
+        facts = [Fact(fact=fact_text, source=source, turn=turn_no)
+                 for fact_text, source in candidates]
+        long_term.add_facts(store, facts)
+        logger.info(f"Promoted {len(facts)} facts to long-term (turn {turn_no})")
 
     # ============================================================
     # 私有：工具摘要
@@ -191,16 +184,14 @@ class MemoryManager:
         self.short.turns = self.short.turns[-self.short.k:]
 
     # ============================================================
-    # 持久化
+    # 持久化（v4.1：只剩短期 + 摘要；长期记忆的持久化是 store 后端的事）
     # ============================================================
     def save(self) -> None:
-        self.long.save()
         self.summarizer.save()
         # 短期记忆也落盘，允许跨会话恢复对话
         self._save_short_term()
 
     def load(self) -> None:
-        self.long.load()
         self.summarizer.load()
         self._load_short_term()
 
@@ -224,9 +215,9 @@ class MemoryManager:
     # ============================================================
     # 重置（--reset-memory 用）
     # ============================================================
-    def reset(self) -> None:
+    def reset(self, store: BaseStore) -> None:
         self.short.clear()
-        self.long.clear()
+        long_term.clear_all(store)
         self.summarizer.clear()
         if self._short_term_path.exists():
             self._short_term_path.unlink()
@@ -235,12 +226,13 @@ class MemoryManager:
     # ============================================================
     # 自省（调试用）
     # ============================================================
-    def info(self) -> dict:
+    def info(self, store: BaseStore) -> dict:
+        c = long_term.counts(store)
         return {
             "short_term_turns": len(self.short.turns),
-            "preferences": dict(self.long.preferences),
-            "facts": len(self.long.facts),
-            "topics_top5": self.long.top_topics(5),
+            "preferences": long_term.list_preferences(store),
+            "facts": c["facts"],
+            "topics_top5": long_term.top_topics(store, 5),
             "summary_chars": len(self.summarizer.summary_text),
         }
 
@@ -252,10 +244,8 @@ class MemoryManager:
 _MEMORY_SINGLETON: Optional[MemoryManager] = None
 
 
-def get_memory(reset: bool = False) -> MemoryManager:
+def get_memory() -> MemoryManager:
     global _MEMORY_SINGLETON
     if _MEMORY_SINGLETON is None:
         _MEMORY_SINGLETON = MemoryManager(autoload=True)
-    if reset:
-        _MEMORY_SINGLETON.reset()
     return _MEMORY_SINGLETON

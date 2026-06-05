@@ -1,5 +1,5 @@
 """
-graph.py — v4.0 状态图组装（v0.3 §五 状态图原样接线）
+graph.py — v4.1 状态图组装（v0.3 §五 状态图原样接线 + 决策 E：store 进 compile）
 
     START → init → assemble → agent ─┬─ tool_calls → tools ─┬─ 失败≥2 → inject_fallback ──(闸门)→ agent/finalize
                                      │                      └─(闸门)→ agent / finalize
@@ -7,9 +7,10 @@ graph.py — v4.0 状态图组装（v0.3 §五 状态图原样接线）
                                      ├─ stop·需联网纠正 → inject_correction_search ──(闸门)→ agent/finalize
                                      └─ stop·无需纠正 → update_memory → human_review → finalize → END
 
-checkpointer 包住整张图（compile(checkpointer=...)），按 thread_id 归档快照。
-本周选 InMemorySaver（决策 A：跨会话持久化仍由 memory/ 的 json 承担，
-图状态进程内存活；Store/SqliteSaver 迁移是后续单独一步）。
+checkpointer 包住整张图（compile(checkpointer=...)），按 thread_id 归档快照——
+管 thread 内短期状态。store 管跨 thread 长期记忆（compile(store=...)，
+LangGraph 注入给 assemble / update_memory 节点）——这是 checkpointer / store 的边界。
+checkpointer 本周仍选 InMemorySaver（决策 A）。
 """
 
 from functools import partial
@@ -19,11 +20,16 @@ from langgraph.graph import StateGraph, START, END
 
 import nodes
 from edges import after_tools, gate_to_agent, route_after_agent
+from memory.ltm_store import get_ltm_store
 from state import AgentState
 
 
-def build_graph(checkpointer=None):
-    """组装并编译 v4.0 状态图。不传 checkpointer 时用独立的 InMemorySaver。"""
+def build_graph(checkpointer=None, store=None):
+    """
+    组装并编译 v4.1 状态图。
+    不传 checkpointer 时用独立的 InMemorySaver；
+    不传 store 时用 get_ltm_store() 进程单例（测试可注入 stub embed 的 InMemoryStore）。
+    """
     g = StateGraph(AgentState)
 
     # ===== 节点（干活/改 state）=====
@@ -68,4 +74,7 @@ def build_graph(checkpointer=None):
             "finalize": "finalize",
         })
 
-    return g.compile(checkpointer=checkpointer or InMemorySaver())
+    return g.compile(
+        checkpointer=checkpointer or InMemorySaver(),
+        store=store or get_ltm_store(),
+    )

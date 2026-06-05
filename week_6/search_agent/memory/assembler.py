@@ -15,18 +15,21 @@
 排序逻辑：越稳定/强约束越靠前。超预算时段 5 先裁 → 段 3/4 次之 → 段 1/2/6 不可裁。
 
 输出是标准 OpenAI messages 列表，直接给 client.chat.completions.create。
+
+v4.1：段 2 / 段 4 的数据源从 LongTermMemory 对象换成 LangGraph Store
+（store 由 assemble 调用方传入——LangGraph 节点注入）。不再依赖 embed_query_fn：
+事实召回的 query embed 由 store 内部完成。段顺序/预算/裁剪这套"挑选"核心不动。
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
-import numpy as np
+from langgraph.store.base import BaseStore
 
 from config import SEGMENT_BUDGETS, TOTAL_CONTEXT_BUDGET
-from .long_term import LongTermMemory
+from . import long_term
 from .short_term import ShortTermMemory, ConversationTurn
 
 logger = logging.getLogger(__name__)
@@ -46,15 +49,11 @@ class ContextAssembler:
 
     def __init__(
         self,
-        long_term: LongTermMemory,
         short_term: ShortTermMemory,
         summary_text_getter,  # callable: () -> str
-        embed_query_fn,       # callable: (str) -> np.ndarray
     ):
-        self.long = long_term
         self.short = short_term
         self.get_summary = summary_text_getter
-        self.embed_query = embed_query_fn
 
     # ============================================================
     # 主入口
@@ -63,9 +62,11 @@ class ContextAssembler:
         self,
         user_message: str,
         system_prompt: str,
+        store: BaseStore,
     ) -> tuple[list[dict], AssemblyReport]:
         """
         返回 (messages, report)。messages 即可直接传给 LLM。
+        store：长期记忆所在的 LangGraph Store（段 2 / 段 4 数据源）。
         """
         segments_present: list[str] = ["system"]
         segments_trimmed: list[str] = []
@@ -75,7 +76,7 @@ class ContextAssembler:
         messages: list[dict] = [{"role": "system", "content": system_prompt}]
 
         # ---- 段 2：用户偏好（永远在）----
-        pref_text = self._format_preferences()
+        pref_text = self._format_preferences(store)
         if pref_text:
             messages.append({"role": "system", "content": pref_text})
             segments_present.append("preferences")
@@ -94,7 +95,7 @@ class ContextAssembler:
             segments_present.append("summary")
 
         # ---- 段 4：召回长期事实 ----
-        facts = self._recall_facts(user_message)
+        facts = self._recall_facts(store, user_message)
         if facts:
             facts_recalled_count = len(facts)
             facts_text = self._format_facts(facts)
@@ -137,23 +138,22 @@ class ContextAssembler:
     # ============================================================
     # 各段格式化
     # ============================================================
-    def _format_preferences(self) -> str:
-        prefs = self.long.preferences
+    @staticmethod
+    def _format_preferences(store: BaseStore) -> str:
+        prefs = long_term.list_preferences(store)
         if not prefs:
             return ""
         lines = [f"- {k}: {v}" for k, v in prefs.items()]
         return "[用户偏好]\n" + "\n".join(lines)
 
-    def _recall_facts(self, query: str) -> list[dict]:
-        """调 retriever 语义召回。失败/库空返回 []。"""
-        if not self.long.facts:
-            return []
+    @staticmethod
+    def _recall_facts(store: BaseStore, query: str) -> list[dict]:
+        """store 原生语义召回（内部自己 embed query）。失败/库空返回 []。"""
         try:
-            q_vec = self.embed_query(query)
-        except Exception as e:
-            logger.warning(f"Embedding query for facts recall failed: {e}")
+            return long_term.recall_facts(store, query)
+        except Exception as e:  # noqa: BLE001 — 召回失败不该阻塞装配
+            logger.warning(f"Facts recall via store failed: {e}")
             return []
-        return self.long.recall_facts(q_vec)
 
     @staticmethod
     def _format_facts(facts: list[dict]) -> str:

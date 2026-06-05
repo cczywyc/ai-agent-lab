@@ -1,5 +1,5 @@
 """
-搜索 Agent v4.0 入口 — LangGraph 状态化工作流
+搜索 Agent v4.1 入口 — LangGraph 状态化工作流（长期记忆走 Store）
 
 运行模式（与 v3.0 对齐）：
   python main.py --ingest            # 扫描项目内 *.md 重建本地向量库
@@ -185,11 +185,12 @@ def run_interactive(use_memory: bool = True, review: bool = False):
     print("  特殊命令：/memory 查看记忆 / /reset 清空记忆 / /state 看本轮 state 摘要")
     print("=" * 60)
 
-    memory = None
+    memory, store = None, None
     if use_memory:
-        from memory import get_memory
+        from memory import get_memory, get_ltm_store
         memory = get_memory()
-        info = memory.info()
+        store = get_ltm_store()  # 与 build_graph 共用同一单例
+        info = memory.info(store)
         print(f"  已加载: {info['short_term_turns']} 轮 | {len(info['preferences'])} 偏好 | "
               f"{info['facts']} 条事实 | {len(info['topics_top5'])} 个高频主题")
     print()
@@ -208,10 +209,10 @@ def run_interactive(use_memory: bool = True, review: bool = False):
             print("再见！")
             break
         if user_input == "/memory" and memory is not None:
-            print(json.dumps(memory.info(), ensure_ascii=False, indent=2))
+            print(json.dumps(memory.info(store), ensure_ascii=False, indent=2, default=str))
             continue
         if user_input == "/reset" and memory is not None:
-            memory.reset()
+            memory.reset(store)
             print("[已清空记忆]")
             continue
         if user_input == "/state":
@@ -263,11 +264,12 @@ MEMORY_DEMO_TURNS = [
 
 
 def run_memory_demo():
-    from memory import get_memory
+    from memory import get_memory, get_ltm_store
     memory = get_memory()
-    memory.reset()
+    store = get_ltm_store()
+    memory.reset(store)
 
-    graph = build_graph()
+    graph = build_graph(store=store)
     thread_id = "memory-demo"
 
     print("=" * 60)
@@ -285,7 +287,7 @@ def run_memory_demo():
     print("\n" + "=" * 30)
     print("  Demo 后的记忆状态")
     print("=" * 30)
-    print(json.dumps(memory.info(), ensure_ascii=False, indent=2))
+    print(json.dumps(memory.info(store), ensure_ascii=False, indent=2, default=str))
 
 
 # ============================================================
@@ -429,13 +431,14 @@ def main():
     args = parser.parse_args()
 
     if args.reset_memory:
-        from memory import get_memory
-        get_memory().reset()
+        from memory import get_memory, get_ltm_store
+        get_memory().reset(get_ltm_store())
         print("[已清空记忆]")
         return
     if args.memory_info:
-        from memory import get_memory
-        print(json.dumps(get_memory().info(), ensure_ascii=False, indent=2))
+        from memory import get_memory, get_ltm_store
+        print(json.dumps(get_memory().info(get_ltm_store()),
+                         ensure_ascii=False, indent=2, default=str))
         return
 
     if args.ingest:

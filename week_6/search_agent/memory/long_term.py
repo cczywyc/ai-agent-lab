@@ -1,44 +1,43 @@
 """
-长期记忆 — 三类记忆
+长期记忆 — 三类记忆 × LangGraph Store（v4.1）
 
-对应设计文档"设计二"：
+对应设计文档"设计二"，迁移后的分工：
 
-| 类型     | 数据结构                    | 写入时机        | 进 prompt 方式 |
-|----------|----------------------------|-----------------|----------------|
-| 偏好     | key-value                  | 显式信号        | 每轮全量       |
-| 已确认事实 | list[{fact,source,turn,..}] | 抽取自带引用回答 | 语义召回 top-k |
-| 主题兴趣 | counter                    | 每轮规则抽取     | 召回加权（暂未实装，留接口）|
+| 类型     | namespace             | 写入时机        | 进 prompt 方式 |
+|----------|-----------------------|-----------------|----------------|
+| 偏好     | ("ltm","preferences") | 显式信号        | 每轮全量       |
+| 已确认事实 | ("ltm","facts")       | 抽取自带引用回答 | 语义召回 top-k |
+| 主题兴趣 | ("ltm","topics")      | 每轮规则抽取     | 召回加权（暂未实装，留接口）|
 
-实现要点：
-  - 事实存两份：json 文件存元数据（fact/source/turn/timestamp），
-    向量库（namespace="memory_facts"）存对应向量
-  - 通过 list 下标关联两者：metadata.json 第 i 项 ↔ vector 第 i 行
-  - 偏好/主题只 json，无向量
+v4.0 → v4.1 的变化（计划 §二）：
+  - "存储 + 召回 + 持久化"整体交给 store：json 三件套与
+    namespace="memory_facts" 向量库退役，Fact↔向量"下标对齐"的手工同步消失
+  - 事实写入不再手动 embed（store.batch 批量 put，索引由 store 内部建）
+  - 召回不再传 query_vector（store.search 原生 query 入参，内部自己 embed）
+  - "挑选"常量（top_k / min_score）留在调用方这侧过滤，不交给 store
+
+本模块瘦身为：Fact schema 约定 + 三个 namespace 的读写函数（store 由调用方传入，
+来源是 LangGraph 节点注入或 main 入口的 get_ltm_store()）。
 """
 
 from __future__ import annotations
 
-import json
+import hashlib
 import logging
 import time
 from dataclasses import dataclass, field, asdict
-from pathlib import Path
-from typing import Optional
 
-import numpy as np
+from langgraph.store.base import BaseStore, PutOp
 
-from config import (
-    MEMORY_DIR, MEMORY_PREFS_FILE, MEMORY_FACTS_FILE, MEMORY_TOPICS_FILE,
-    MEMORY_FACTS_TOP_K, MEMORY_FACTS_MIN_SCORE, EMBEDDING_DIM,
-)
-from rag.store import VectorStore
+from config import MEMORY_FACTS_TOP_K, MEMORY_FACTS_MIN_SCORE
+from .ltm_store import NS_PREFS, NS_FACTS, NS_TOPICS
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Fact:
-    """单条已确认事实。"""
+    """单条已确认事实（store value 的 schema 约定）。"""
     fact: str
     source: str           # "doc#section[#chunk_id]" 或 "turn:N"
     turn: int             # 写入时的对话轮次
@@ -48,152 +47,127 @@ class Fact:
         return asdict(self)
 
 
-class LongTermMemory:
-    """三类长期记忆 + 持久化 + 事实语义召回。"""
+def fact_key(fact_text: str) -> str:
+    """事实的 store key：原文哈希——同文重写幂等（迁移脚本重跑不产生重复）。"""
+    return hashlib.sha1(fact_text.encode("utf-8")).hexdigest()[:16]
 
-    def __init__(self, persist_dir: Optional[Path] = None):
-        self.persist_dir = Path(persist_dir or MEMORY_DIR)
-        self.persist_dir.mkdir(parents=True, exist_ok=True)
 
-        # 偏好：key-value，全量进 prompt
-        self.preferences: dict[str, str] = {}
+# ============================================================
+# 内部：翻页列全（BaseStore.search 单页有 limit，计数/清空要翻完）
+# ============================================================
+_PAGE = 100
 
-        # 已确认事实：dataclass 列表，与向量库下标对齐
-        self.facts: list[Fact] = []
 
-        # 主题计数：调用方可根据 count 排序做兴趣建模
-        self.topics: dict[str, int] = {}
+def _list_all(store: BaseStore, namespace: tuple) -> list:
+    out, offset = [], 0
+    while True:
+        page = store.search(namespace, limit=_PAGE, offset=offset)
+        out.extend(page)
+        if len(page) < _PAGE:
+            return out
+        offset += _PAGE
 
-        # 事实向量库（懒加载）
-        self._facts_store: Optional[VectorStore] = None
 
-    # ============================================================
-    # 偏好
-    # ============================================================
-    def set_preference(self, key: str, value: str) -> None:
-        """显式信号触发；同 key 覆盖。"""
-        key = key.strip()
-        if not key:
-            return
-        self.preferences[key] = value.strip()
-        logger.info(f"Preference set: {key} = {value}")
+# ============================================================
+# 偏好
+# ============================================================
+def set_preference(store: BaseStore, key: str, value: str) -> None:
+    """显式信号触发；同 key 覆盖。index=False：纯 kv，不进语义索引。"""
+    key = key.strip()
+    if not key:
+        return
+    store.put(NS_PREFS, key, {"value": value.strip()}, index=False)
+    logger.info(f"Preference set: {key} = {value}")
 
-    def forget_preference(self, key: str) -> bool:
-        return self.preferences.pop(key, None) is not None
 
-    # ============================================================
-    # 主题
-    # ============================================================
-    def bump_topics(self, topics: list[str]) -> None:
-        for t in topics:
-            t = t.strip()
-            if not t:
-                continue
-            self.topics[t] = self.topics.get(t, 0) + 1
+def forget_preference(store: BaseStore, key: str) -> bool:
+    if store.get(NS_PREFS, key) is None:
+        return False
+    store.delete(NS_PREFS, key)
+    return True
 
-    def top_topics(self, n: int = 5) -> list[tuple[str, int]]:
-        return sorted(self.topics.items(), key=lambda x: -x[1])[:n]
 
-    # ============================================================
-    # 已确认事实（带语义召回）
-    # ============================================================
-    def _ensure_facts_store(self) -> VectorStore:
-        if self._facts_store is None:
-            self._facts_store = VectorStore(
-                namespace="memory_facts",
-                persist_dir=self.persist_dir,
-            )
-            self._facts_store.load()  # 静默允许首次空
-        return self._facts_store
+def list_preferences(store: BaseStore) -> dict[str, str]:
+    """全量偏好（段 2 每轮全进 prompt，量小）。"""
+    return {it.key: it.value.get("value", "") for it in _list_all(store, NS_PREFS)}
 
-    def add_fact(self, fact: Fact, vector: Optional[np.ndarray] = None) -> None:
-        """
-        追加事实。向量可由调用方预先算好传入，避免重复 embed。
-        若 vector=None，只入 json 不入向量库（不可召回）。
-        """
-        self.facts.append(fact)
-        if vector is not None:
-            store = self._ensure_facts_store()
-            # 形状统一为 (1, D)
-            v = vector.reshape(1, -1) if vector.ndim == 1 else vector
-            # 同步元数据（与 self.facts 下标对齐）
-            store.add(v, [fact.to_dict()])
 
-    def recall_facts(
-        self,
-        query_vector: np.ndarray,
-        top_k: int = MEMORY_FACTS_TOP_K,
-        min_score: float = MEMORY_FACTS_MIN_SCORE,
-    ) -> list[dict]:
-        """语义召回 top-k 相关事实。返回 [{fact, source, turn, score}, ...]"""
-        store = self._ensure_facts_store()
-        if len(store) == 0:
-            return []
-        hits = store.search(query_vector, top_k=top_k)
-        return [
-            {**meta, "score": round(float(score), 4)}
-            for meta, score in hits
-            if score >= min_score
-        ]
+# ============================================================
+# 主题
+# ============================================================
+def bump_topics(store: BaseStore, topics: list[str]) -> None:
+    """get 现值 +1 后 put。index=False：纯计数，不进语义索引。"""
+    for t in topics:
+        t = t.strip()
+        if not t:
+            continue
+        cur = store.get(NS_TOPICS, t)
+        n = (cur.value.get("count", 0) if cur else 0) + 1
+        store.put(NS_TOPICS, t, {"count": n}, index=False)
 
-    # ============================================================
-    # 持久化
-    # ============================================================
-    @property
-    def _prefs_path(self) -> Path:
-        return self.persist_dir / MEMORY_PREFS_FILE
 
-    @property
-    def _facts_path(self) -> Path:
-        return self.persist_dir / MEMORY_FACTS_FILE
+def top_topics(store: BaseStore, n: int = 5) -> list[tuple[str, int]]:
+    items = [(it.key, it.value.get("count", 0)) for it in _list_all(store, NS_TOPICS)]
+    return sorted(items, key=lambda x: -x[1])[:n]
 
-    @property
-    def _topics_path(self) -> Path:
-        return self.persist_dir / MEMORY_TOPICS_FILE
 
-    def save(self) -> None:
-        with open(self._prefs_path, "w", encoding="utf-8") as f:
-            json.dump(self.preferences, f, ensure_ascii=False, indent=2)
-        with open(self._facts_path, "w", encoding="utf-8") as f:
-            json.dump([fa.to_dict() for fa in self.facts], f,
-                      ensure_ascii=False, indent=2)
-        with open(self._topics_path, "w", encoding="utf-8") as f:
-            json.dump(self.topics, f, ensure_ascii=False, indent=2)
-        # 向量库（如果有）
-        if self._facts_store is not None and len(self._facts_store) > 0:
-            self._facts_store.save()
-
-    def load(self) -> None:
-        if self._prefs_path.exists():
-            with open(self._prefs_path, "r", encoding="utf-8") as f:
-                self.preferences = json.load(f)
-        if self._facts_path.exists():
-            with open(self._facts_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                self.facts = [Fact(**d) for d in data]
-        if self._topics_path.exists():
-            with open(self._topics_path, "r", encoding="utf-8") as f:
-                self.topics = json.load(f)
-        # 触发向量库懒加载
-        self._ensure_facts_store()
-
-        logger.info(
-            f"LongTermMemory loaded: {len(self.preferences)} prefs, "
-            f"{len(self.facts)} facts, {len(self.topics)} topics"
+# ============================================================
+# 已确认事实（语义召回交给 store）
+# ============================================================
+def add_facts(store: BaseStore, facts: list[Fact]) -> None:
+    """
+    批量写入事实。store.batch 把整批的 embed 合并成一次 API 调用
+    （与 v4.0 手动 embed_texts 批量等价的经济性）。
+    嵌入失败时降级为 index=False 写入：数据不丢，只是不可语义召回
+    （与 v4.0 "embed 失败只入 json 不入向量库"的行为一致）。
+    """
+    if not facts:
+        return
+    ops = [PutOp(namespace=NS_FACTS, key=fact_key(f.fact), value=f.to_dict())
+           for f in facts]
+    try:
+        store.batch(ops)
+    except Exception as e:  # noqa: BLE001 — embed/后端失败都不该丢数据
+        logger.warning(
+            f"Indexed batch put failed: {e}. "
+            f"Storing facts without index (not semantically recallable)."
         )
+        for f in facts:
+            store.put(NS_FACTS, fact_key(f.fact), f.to_dict(), index=False)
 
-    def clear(self) -> None:
-        """清空内存中数据并删除持久化文件（含向量库）。"""
-        self.preferences = {}
-        self.facts = []
-        self.topics = {}
-        for p in (self._prefs_path, self._facts_path, self._topics_path):
-            if p.exists():
-                p.unlink()
-        # 清向量库
-        store = self._ensure_facts_store()
-        store.reset()
-        for p in (store._vec_path, store._meta_path):
-            if p.exists():
-                p.unlink()
-        self._facts_store = None
+
+def recall_facts(
+    store: BaseStore,
+    query: str,
+    top_k: int = MEMORY_FACTS_TOP_K,
+    min_score: float = MEMORY_FACTS_MIN_SCORE,
+) -> list[dict]:
+    """
+    语义召回 top-k 相关事实，返回 [{fact, source, turn, ..., score}, ...]。
+    native search 内部 embed query；min_score 阈值留在这侧过滤（与 v4.0 语义一致）。
+    score 为 None 的条目（降级写入的未索引事实）不参与召回。
+    """
+    hits = store.search(NS_FACTS, query=query, limit=top_k)
+    return [
+        {**h.value, "score": round(float(h.score), 4)}
+        for h in hits
+        if h.score is not None and h.score >= min_score
+    ]
+
+
+# ============================================================
+# 计数 / 清空（info、--reset-memory 用）
+# ============================================================
+def counts(store: BaseStore) -> dict[str, int]:
+    return {
+        "preferences": len(_list_all(store, NS_PREFS)),
+        "facts": len(_list_all(store, NS_FACTS)),
+        "topics": len(_list_all(store, NS_TOPICS)),
+    }
+
+
+def clear_all(store: BaseStore) -> None:
+    """清空三个 namespace（BaseStore 无整 namespace 删除接口，逐条 delete）。"""
+    for ns in (NS_PREFS, NS_FACTS, NS_TOPICS):
+        for it in _list_all(store, ns):
+            store.delete(ns, it.key)

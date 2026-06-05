@@ -33,6 +33,7 @@ from langchain_core.messages import (
     ToolMessage,
     convert_to_openai_messages,
 )
+from langgraph.store.base import BaseStore
 from langgraph.types import interrupt
 
 import config as settings
@@ -67,12 +68,24 @@ def call_model(oai_messages: list[dict]):
 # ============================================================
 
 def _window_start(messages: list) -> int:
-    """本问题窗口起点 = 最后一条 system 消息的下标（每次 assemble 都以 system 开头）。"""
-    idx = 0
+    """
+    本问题窗口起点 = 最后一条「内容为 SYSTEM_PROMPT」的 system 消息下标。
+
+    每次 assemble 的段 1 都是 SYSTEM_PROMPT，所以它就是装配块的起点锚。
+    不能取"最后一条 system 消息"：记忆开启时 assemble 会产出多条 system
+    （段 1 prompt / 段 2 偏好 / 段 3 摘要 / 段 4 事实），取最后一条会把
+    段 1-4 切出窗口，模型看不到 SYSTEM_PROMPT（v4.0 的隐藏 bug，v4.1 修复）。
+    找不到锚时退回"最后一条 system 消息"的旧行为。
+    """
+    idx, fallback = 0, 0
+    found = False
     for i, m in enumerate(messages):
         if isinstance(m, SystemMessage):
-            idx = i
-    return idx
+            fallback = i
+            if m.content == SYSTEM_PROMPT:
+                idx = i
+                found = True
+    return idx if found else fallback
 
 
 def _window_messages(messages: list) -> list:
@@ -136,11 +149,14 @@ def init(state: AgentState):
     return defaults
 
 
-def assemble(state: AgentState, config):
-    """六段装配（★保留，v3.0 memory.assemble_context / assembler.py）。"""
+def assemble(state: AgentState, config, *, store: BaseStore):
+    """
+    六段装配（★保留，v3.0 memory.assemble_context / assembler.py）。
+    store 由 LangGraph 注入（compile(store=...)）——段 2 偏好 / 段 4 事实的数据源。
+    """
     memory = _memory_from(config)
     if memory is not None:
-        msgs, report = memory.assemble_context(state["user_message"], SYSTEM_PROMPT)
+        msgs, report = memory.assemble_context(state["user_message"], SYSTEM_PROMPT, store)
         report_dict = asdict(report) if is_dataclass(report) else dict(vars(report))
         logger.info(
             f"Memory assembled: segs={report_dict.get('segments_present')} "
@@ -300,13 +316,21 @@ def _trace_shim(state: AgentState) -> SimpleNamespace:
     )
 
 
-def update_memory(state: AgentState, config):
-    """抽取主题/偏好/事实、写长期、eviction 触发摘要（v3.0 memory.update_from_turn）。"""
+def update_memory(state: AgentState, config, *, store: BaseStore):
+    """
+    抽取主题/偏好/事实、写长期、eviction 触发摘要（v3.0 memory.update_from_turn）。
+    store 由 LangGraph 注入——长期记忆三类（偏好/事实/主题）写入这里。
+    """
     memory = _memory_from(config)
     if memory is None:
         return {}
     answer = state.get("answer") or _last_ai_content(state)
-    memory.update_from_turn(state["user_message"], answer, _trace_shim(state))
+    if not answer.strip():
+        # 模型偶发返回空 content（finalize 会补占位符）。空轮次没有可记的内容，
+        # 写进短期记忆反而会把一次模型抖动级联污染到后续问题的段 5。
+        logger.info("Skipping memory update: empty answer this turn.")
+        return {}
+    memory.update_from_turn(state["user_message"], answer, _trace_shim(state), store)
     return {}
 
 

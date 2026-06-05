@@ -1,0 +1,609 @@
+{
+  "n_facts": 11,
+  "n_queries": 12,
+  "top_k": 3,
+  "min_score": 0.3,
+  "hit@1": "12/12",
+  "hit@3": "12/12",
+  "per_query": [
+    {
+      "query": "连续失败计数器是怎么重置的？",
+      "expected": [
+        0,
+        3
+      ],
+      "recalled_idx_top3": [
+        3,
+        0,
+        1
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 3,
+          "score": 0.7813
+        },
+        {
+          "idx": 0,
+          "score": 0.7539
+        },
+        {
+          "idx": 1,
+          "score": 0.6257
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 3,
+          "score": 0.7813
+        },
+        {
+          "idx": 0,
+          "score": 0.7539
+        },
+        {
+          "idx": 1,
+          "score": 0.6257
+        },
+        {
+          "idx": 4,
+          "score": 0.5876
+        },
+        {
+          "idx": 2,
+          "score": 0.5269
+        }
+      ]
+    },
+    {
+      "query": "工具连续失败之后什么时候触发降级？",
+      "expected": [
+        1,
+        4
+      ],
+      "recalled_idx_top3": [
+        1,
+        4,
+        0
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 1,
+          "score": 0.7596
+        },
+        {
+          "idx": 4,
+          "score": 0.7346
+        },
+        {
+          "idx": 0,
+          "score": 0.6473
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 1,
+          "score": 0.7596
+        },
+        {
+          "idx": 4,
+          "score": 0.7346
+        },
+        {
+          "idx": 0,
+          "score": 0.6473
+        },
+        {
+          "idx": 3,
+          "score": 0.6159
+        },
+        {
+          "idx": 5,
+          "score": 0.5832
+        }
+      ]
+    },
+    {
+      "query": "工具返回的结构化错误元数据有哪些字段？",
+      "expected": [
+        2,
+        5
+      ],
+      "recalled_idx_top3": [
+        2,
+        5,
+        9
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 2,
+          "score": 0.732
+        },
+        {
+          "idx": 5,
+          "score": 0.6813
+        },
+        {
+          "idx": 9,
+          "score": 0.6084
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 2,
+          "score": 0.732
+        },
+        {
+          "idx": 5,
+          "score": 0.6813
+        },
+        {
+          "idx": 9,
+          "score": 0.6084
+        },
+        {
+          "idx": 3,
+          "score": 0.5729
+        },
+        {
+          "idx": 0,
+          "score": 0.5688
+        }
+      ]
+    },
+    {
+      "query": "recoverable 和 suggestion 字段是干什么用的？",
+      "expected": [
+        2,
+        5
+      ],
+      "recalled_idx_top3": [
+        5,
+        2,
+        9
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 5,
+          "score": 0.6936
+        },
+        {
+          "idx": 2,
+          "score": 0.674
+        },
+        {
+          "idx": 9,
+          "score": 0.5631
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 5,
+          "score": 0.6936
+        },
+        {
+          "idx": 2,
+          "score": 0.674
+        },
+        {
+          "idx": 9,
+          "score": 0.5631
+        },
+        {
+          "idx": 10,
+          "score": 0.5512
+        },
+        {
+          "idx": 1,
+          "score": 0.5385
+        }
+      ]
+    },
+    {
+      "query": "文档 chunking 是按什么切分的？",
+      "expected": [
+        8,
+        10
+      ],
+      "recalled_idx_top3": [
+        8,
+        9,
+        10
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 8,
+          "score": 0.6961
+        },
+        {
+          "idx": 9,
+          "score": 0.6768
+        },
+        {
+          "idx": 10,
+          "score": 0.5973
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 8,
+          "score": 0.6961
+        },
+        {
+          "idx": 9,
+          "score": 0.6768
+        },
+        {
+          "idx": 10,
+          "score": 0.5973
+        },
+        {
+          "idx": 2,
+          "score": 0.488
+        },
+        {
+          "idx": 5,
+          "score": 0.4562
+        }
+      ]
+    },
+    {
+      "query": "每个 chunk 需要携带哪些元数据？",
+      "expected": [
+        9
+      ],
+      "recalled_idx_top3": [
+        9,
+        8,
+        10
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 9,
+          "score": 0.8038
+        },
+        {
+          "idx": 8,
+          "score": 0.521
+        },
+        {
+          "idx": 10,
+          "score": 0.5152
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 9,
+          "score": 0.8038
+        },
+        {
+          "idx": 8,
+          "score": 0.521
+        },
+        {
+          "idx": 10,
+          "score": 0.5152
+        },
+        {
+          "idx": 2,
+          "score": 0.5081
+        },
+        {
+          "idx": 5,
+          "score": 0.4973
+        }
+      ]
+    },
+    {
+      "query": "为什么没有采用纯语义分块？",
+      "expected": [
+        10
+      ],
+      "recalled_idx_top3": [
+        10,
+        8,
+        2
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 10,
+          "score": 0.7115
+        },
+        {
+          "idx": 8,
+          "score": 0.6187
+        },
+        {
+          "idx": 2,
+          "score": 0.5199
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 10,
+          "score": 0.7115
+        },
+        {
+          "idx": 8,
+          "score": 0.6187
+        },
+        {
+          "idx": 2,
+          "score": 0.5199
+        },
+        {
+          "idx": 9,
+          "score": 0.5105
+        },
+        {
+          "idx": 5,
+          "score": 0.5025
+        }
+      ]
+    },
+    {
+      "query": "fetch_webpage 连续 403 失败时 Agent 怎么办？",
+      "expected": [
+        1,
+        4
+      ],
+      "recalled_idx_top3": [
+        1,
+        4,
+        0
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 1,
+          "score": 0.7444
+        },
+        {
+          "idx": 4,
+          "score": 0.6091
+        },
+        {
+          "idx": 0,
+          "score": 0.5773
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 1,
+          "score": 0.7444
+        },
+        {
+          "idx": 4,
+          "score": 0.6091
+        },
+        {
+          "idx": 0,
+          "score": 0.5773
+        },
+        {
+          "idx": 5,
+          "score": 0.558
+        },
+        {
+          "idx": 3,
+          "score": 0.5311
+        }
+      ]
+    },
+    {
+      "query": "consecutive_errors 达到阈值会发生什么？",
+      "expected": [
+        0,
+        3,
+        4
+      ],
+      "recalled_idx_top3": [
+        4,
+        3,
+        0
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 4,
+          "score": 0.7016
+        },
+        {
+          "idx": 3,
+          "score": 0.6687
+        },
+        {
+          "idx": 0,
+          "score": 0.6462
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 4,
+          "score": 0.7016
+        },
+        {
+          "idx": 3,
+          "score": 0.6687
+        },
+        {
+          "idx": 0,
+          "score": 0.6462
+        },
+        {
+          "idx": 1,
+          "score": 0.6256
+        },
+        {
+          "idx": 2,
+          "score": 0.5217
+        }
+      ]
+    },
+    {
+      "query": "Markdown 标题切分策略是怎么设计的？",
+      "expected": [
+        8
+      ],
+      "recalled_idx_top3": [
+        8,
+        10,
+        1
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 8,
+          "score": 0.7364
+        },
+        {
+          "idx": 10,
+          "score": 0.6217
+        },
+        {
+          "idx": 1,
+          "score": 0.5073
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 8,
+          "score": 0.7364
+        },
+        {
+          "idx": 10,
+          "score": 0.6217
+        },
+        {
+          "idx": 1,
+          "score": 0.5073
+        },
+        {
+          "idx": 9,
+          "score": 0.4945
+        },
+        {
+          "idx": 2,
+          "score": 0.4657
+        }
+      ]
+    },
+    {
+      "query": "成功即重置是什么策略？",
+      "expected": [
+        0,
+        3
+      ],
+      "recalled_idx_top3": [
+        3,
+        0,
+        1
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 3,
+          "score": 0.7197
+        },
+        {
+          "idx": 0,
+          "score": 0.5712
+        },
+        {
+          "idx": 1,
+          "score": 0.5574
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 3,
+          "score": 0.7197
+        },
+        {
+          "idx": 0,
+          "score": 0.5712
+        },
+        {
+          "idx": 1,
+          "score": 0.5574
+        },
+        {
+          "idx": 4,
+          "score": 0.5328
+        },
+        {
+          "idx": 10,
+          "score": 0.5324
+        }
+      ]
+    },
+    {
+      "query": "降级之后 Agent 基于什么内容回答？",
+      "expected": [
+        1,
+        4
+      ],
+      "recalled_idx_top3": [
+        1,
+        5,
+        4
+      ],
+      "hit@1": true,
+      "hit@3": true,
+      "filtered_top3": [
+        {
+          "idx": 1,
+          "score": 0.6652
+        },
+        {
+          "idx": 5,
+          "score": 0.6398
+        },
+        {
+          "idx": 4,
+          "score": 0.6096
+        }
+      ],
+      "raw_top5": [
+        {
+          "idx": 1,
+          "score": 0.6652
+        },
+        {
+          "idx": 5,
+          "score": 0.6398
+        },
+        {
+          "idx": 4,
+          "score": 0.6096
+        },
+        {
+          "idx": 2,
+          "score": 0.4908
+        },
+        {
+          "idx": 0,
+          "score": 0.4835
+        }
+      ]
+    }
+  ],
+  "mode": "baseline (旧 recall_facts)"
+}
