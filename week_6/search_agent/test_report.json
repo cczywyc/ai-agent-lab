@@ -1,7 +1,7 @@
 {
   "version": "4.0",
   "engine": "langgraph",
-  "timestamp": "2026-06-04T16:47:13.182282",
+  "timestamp": "2026-06-05T15:19:10.287742",
   "total_cases": 8,
   "results": [
     {
@@ -20,10 +20,10 @@
       "retrieval_correction_injected": false,
       "search_correction_injected": false,
       "fallback_triggered": false,
-      "total_turns": 2,
-      "duration_ms": 14594,
+      "total_turns": 3,
+      "duration_ms": 13557,
       "retrieved_chunks": [],
-      "answer_preview": "2024年诺贝尔物理学奖授予了两位科学家：\n\n- **约翰·J·霍普菲尔德（John J. Hopfield）**，美国普林斯顿大学教授，因提出“霍普菲尔德神经网络”（Hopfield network），为人工神经网络的理论基础作出开创性贡献；  \n- **杰弗里·E·辛顿（Geoffrey E. Hinton）**，英国/加拿大计算机科学家、多伦多大学名誉教授，因在深度学习和反向传播算法等方面的奠基性工作，推动了现代人工智能的发展。\n\n两人因“在人工神经网络机器学习领域的基础性发现”而共同获奖，这是诺贝尔物理学奖首次颁给纯粹以计算机科学和人工智能为核心贡献的学者。\n\n信息来源：[NobelP"
+      "answer_preview": "2024 年诺贝尔物理学奖联合授予了两位科学家：\n\n- **John J. Hopfield**（约翰·霍普菲尔德）\n- **Geoffrey Hinton**（杰弗里·辛顿，被誉为\"AI 教父\"之一）\n\n获奖理由是：**\"for foundational discoveries and inventions that enable machine learning with artificial neural networks\"**——即他们在人工神经网络领域的基础性发现和发明，为机器学习奠定了重要基础。\n\n值得一提的是，这一结果在当时引起了广泛讨论，因为获奖成果与人工智能/机器学习密切相关"
     },
     {
       "id": 2,
@@ -42,9 +42,9 @@
       "search_correction_injected": false,
       "fallback_triggered": false,
       "total_turns": 1,
-      "duration_ms": 3465,
+      "duration_ms": 5268,
       "retrieved_chunks": [],
-      "answer_preview": "好的，这是一首为您创作的关于春天的五言绝句：\n\n《春晓即事》\n风软柳初黄，莺梭桃欲燃。\n溪喧鱼戏浅，云淡日痕圆。\n\n注：此诗严格遵循五言绝句格律（仄起首句不入韵），通过“柳黄”、“桃燃”、“鱼戏”、“日圆”等意象，描绘出早春时节风物萌动、生机勃发的清新画面。"
+      "answer_preview": "春风拂柳绿，\n细雨润花红。\n燕舞晴空里，\n莺啼暖日中。"
     },
     {
       "id": 3,
@@ -63,9 +63,9 @@
       "search_correction_injected": false,
       "fallback_triggered": false,
       "total_turns": 1,
-      "duration_ms": 801,
+      "duration_ms": 7237,
       "retrieved_chunks": [],
-      "answer_preview": "234 × 567 = 132,678"
+      "answer_preview": "234 × 567 = **132,678**\n\n计算过程：\n- 234 × 7 = 1,638\n- 234 × 60 = 14,040\n- 234 × 500 = 117,000\n- 合计：1,638 + 14,040 + 117,000 = 132,678"
     },
     {
       "id": 4,
@@ -83,8 +83,8 @@
       "retrieval_correction_injected": false,
       "search_correction_injected": false,
       "fallback_triggered": false,
-      "total_turns": 2,
-      "duration_ms": 14430,
+      "total_turns": 3,
+      "duration_ms": 31047,
       "retrieved_chunks": [
         {
           "doc": "Agent_Loop_设计笔记",
@@ -115,9 +115,75 @@
           "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 4：Agent 控制循环的复杂度呈指数增长",
           "chunk_id": 9,
           "score": 0.7015
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第六周（LangGraph）",
+          "chunk_id": 19,
+          "score": 0.6975
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环",
+          "chunk_id": 0,
+          "score": 0.6939
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周四 — 实现完整代码升级",
+          "chunk_id": 4,
+          "score": 0.686
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置",
+          "chunk_id": 9,
+          "score": 0.6335
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级指令放在 user 角色而不是 system 角色",
+          "chunk_id": 8,
+          "score": 0.6185
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.2 降级机制未触发说明了什么",
+          "chunk_id": 13,
+          "score": 0.6175
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级阈值为什么是 2",
+          "chunk_id": 7,
+          "score": 0.5906
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.3 Prompt 和代码两层防御的协作关系",
+          "chunk_id": 14,
+          "score": 0.5628
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q2：降级后的回答质量如何保证？",
+          "chunk_id": 20,
+          "score": 0.5624
+        },
+        {
+          "doc": "第四五周整合设计_RAG与记忆系统",
+          "section": "第一部分：第四周 RAG（地基） > 第四周产出物",
+          "chunk_id": 6,
+          "score": 0.5519
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 1：Prompt 优化和代码检查是互补关系，不是替代关系",
+          "chunk_id": 6,
+          "score": 0.5514
         }
       ],
-      "answer_preview": "根据本地知识库检索结果，第三周的 Agent Loop 对工具连续失败的处理机制如下：\n\n- **连续失败计数与重置策略**：Agent Loop 采用“连续失败计数器”，每次工具调用失败（`is_error == True`）时计数器递增；一旦任意一次工具调用成功，计数器立即清零（`consecutive_errors = 0`）。该设计基于搜索 Agent 的线性调用模式（搜索 → 抓取 → 搜索 → 抓取），认为“连续失败”比滑动窗口更简洁有效 `[Agent_Loop_设计笔记#Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2"
+      "answer_preview": "根据检索结果，我来详细回答第三周 Agent Loop 处理工具连续失败的机制：\n\n---\n\n## 第三周 Agent Loop 的工具连续失败处理机制\n\n### 1. 问题背景：第二周的教训\n\n第二周的 Agent Loop **没有 fallback 机制**，工具连续失败时只是继续循环让模型自行决策 [第二周学习复盘#当前实现的不足]。实测 Case 3（LangGraph vs CrewAI）因连续遇到 403 耗尽 5 轮次，最终无答案输出 [week_2/search_agent/README#已知问题]。\n\n---\n\n### 2. 第三周的解决方案：执行保护机制（控制点 2）\n\n"
     },
     {
       "id": 5,
@@ -135,8 +201,8 @@
       "retrieval_correction_injected": false,
       "search_correction_injected": false,
       "fallback_triggered": false,
-      "total_turns": 2,
-      "duration_ms": 10807,
+      "total_turns": 3,
+      "duration_ms": 26788,
       "retrieved_chunks": [
         {
           "doc": "Agent_Loop_设计笔记",
@@ -167,9 +233,123 @@
           "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析",
           "chunk_id": 20,
           "score": 0.5889
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
+          "chunk_id": 11,
+          "score": 0.5749
+        },
+        {
+          "doc": "README",
+          "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > 工具设计层面",
+          "chunk_id": 3,
+          "score": 0.5737
+        },
+        {
+          "doc": "第二周学习复盘",
+          "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第三周（Prompt + Structured Output + 控制循环）",
+          "chunk_id": 22,
+          "score": 0.5608
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q1：规则引擎的上限在哪里？",
+          "chunk_id": 19,
+          "score": 0.6958
+        },
+        {
+          "doc": "README",
+          "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计",
+          "chunk_id": 5,
+          "score": 0.6027
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 周五发现的假阳性问题及修复",
+          "chunk_id": 6,
+          "score": 0.6013
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周五 — 分析测试报告 + 修复问题",
+          "chunk_id": 5,
+          "score": 0.5875
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
+          "chunk_id": 11,
+          "score": 0.5655
+        },
+        {
+          "doc": "第二周学习复盘",
+          "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析",
+          "chunk_id": 20,
+          "score": 0.5591
+        },
+        {
+          "doc": "README",
+          "section": "Search Agent — Week 2 Demo > 工具设计",
+          "chunk_id": 1,
+          "score": 0.5526
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 五、本周代码架构",
+          "chunk_id": 15,
+          "score": 0.5446
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周五 — 分析测试报告 + 修复问题",
+          "chunk_id": 5,
+          "score": 0.6483
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 周五发现的假阳性问题及修复",
+          "chunk_id": 6,
+          "score": 0.6134
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q1：规则引擎的上限在哪里？",
+          "chunk_id": 19,
+          "score": 0.6058
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 核心设计决策：纠正最多 1 次",
+          "chunk_id": 5,
+          "score": 0.5788
+        },
+        {
+          "doc": "README",
+          "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计",
+          "chunk_id": 5,
+          "score": 0.5751
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
+          "chunk_id": 11,
+          "score": 0.5476
+        },
+        {
+          "doc": "第二周学习复盘",
+          "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第三周（Prompt + Structured Output + 控制循环）",
+          "chunk_id": 22,
+          "score": 0.546
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.1 假阳性纠正的教训",
+          "chunk_id": 12,
+          "score": 0.5311
         }
       ],
-      "answer_preview": "根据本地设计文档，`should_have_searched` 函数的规则是基于**关键词和正则表达式的启发式规则**，其核心设计与使用方式如下：\n\n- 它是一个**无状态函数**，仅依据当前用户消息（`user_message`）进行判断，不考虑对话历史或上下文状态 `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.1 控制点 1：决策审查（检查机制 1） > 周五发现的假阳性问题及修复]`。\n- 规则在 28 条测试用例上达到了 100% 准确率，但存在根本局限：**无法理解语义**；例如含“什么意思”的问题会被匹配触发搜索，但实际属于代码解释任务，不应搜索 `[Age"
+      "answer_preview": "[模型返回空回答]"
     },
     {
       "id": 6,
@@ -188,40 +368,58 @@
       "search_correction_injected": false,
       "fallback_triggered": false,
       "total_turns": 2,
-      "duration_ms": 11856,
+      "duration_ms": 14214,
       "retrieved_chunks": [
         {
           "doc": "第四五周整合设计_RAG与记忆系统",
           "section": "第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking",
           "chunk_id": 2,
-          "score": 0.8142
+          "score": 0.817
         },
         {
           "doc": "第四五周整合设计_RAG与记忆系统",
           "section": "第一部分：第四周 RAG（地基） > RAG-4：为什么只检索不够（rerank / 引用约束）",
           "chunk_id": 5,
-          "score": 0.742
-        },
-        {
-          "doc": "第四五周整合设计_RAG与记忆系统",
-          "section": "第一部分：第四周 RAG（地基） > RAG-3：检索工具 + 引用约束",
-          "chunk_id": 4,
-          "score": 0.7265
+          "score": 0.7502
         },
         {
           "doc": "第四五周整合设计_RAG与记忆系统",
           "section": "第一部分：第四周 RAG（地基） > RAG-2：Embedding 与向量存储",
           "chunk_id": 3,
-          "score": 0.7227
+          "score": 0.7309
+        },
+        {
+          "doc": "第四五周整合设计_RAG与记忆系统",
+          "section": "第一部分：第四周 RAG（地基） > 第四周产出物",
+          "chunk_id": 6,
+          "score": 0.7245
         },
         {
           "doc": "第三周学习复盘",
           "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第四周（RAG）",
           "chunk_id": 17,
-          "score": 0.7115
+          "score": 0.7207
+        },
+        {
+          "doc": "第四五周整合设计_RAG与记忆系统",
+          "section": "第一部分：第四周 RAG（地基） > RAG-3：检索工具 + 引用约束",
+          "chunk_id": 4,
+          "score": 0.7201
+        },
+        {
+          "doc": "第四五周整合设计_RAG与记忆系统",
+          "section": "第四 + 五周整合设计：Agentic RAG + 记忆系统 > 0. 整体思路：为什么 RAG 先做、记忆后做",
+          "chunk_id": 1,
+          "score": 0.7159
+        },
+        {
+          "doc": "第四五周整合设计_RAG与记忆系统",
+          "section": "第四 + 五周整合设计：Agentic RAG + 记忆系统",
+          "chunk_id": 0,
+          "score": 0.7104
         }
       ],
-      "answer_preview": "根据本地知识库检索结果，本项目第四周的 RAG chunking 策略决策如下：\n\n- **核心原则是优先按语义结构切分**：鉴于项目自身笔记（如设计文档、复盘记录）结构化程度高，明确选择「按 markdown 标题、段落」进行切分，而非简单按固定 token 数量硬切。因为按标题切分能更好地保持语义完整性 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **作为补充和兜底策略，采用固定大小+重叠方式**：起步阶段也采用「500 token / 重叠 50」的方案，但其定位是辅助性策略，主策略仍是结构化切分 `"
+      "answer_preview": "根据本地设计文档，第四周 RAG 的 chunking 策略决策如下：\n\n## Chunking 策略的核心思路\n\n1. **起步方案**：先用「固定大小 + 重叠」（如 500 token / 重叠 50）作为基线。[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]\n\n2. **优先选择按结构切**：因为本项目的语料（技术笔记 / 项目设计文档）本身**结构化程度高**（Markdown 标题、段落），按标题切的语义完整性远好于按字数硬切，所以优先考虑按结构切分。[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG"
     },
     {
       "id": 7,
@@ -235,45 +433,63 @@
       "retrieve_correct": true,
       "has_answer": true,
       "passed": true,
-      "correction_triggered": false,
-      "retrieval_correction_injected": false,
+      "correction_triggered": true,
+      "retrieval_correction_injected": true,
       "search_correction_injected": false,
       "fallback_triggered": false,
-      "total_turns": 2,
-      "duration_ms": 11219,
+      "total_turns": 3,
+      "duration_ms": 16170,
       "retrieved_chunks": [
-        {
-          "doc": "第三周学习复盘",
-          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
-          "chunk_id": 11,
-          "score": 0.5211
-        },
         {
           "doc": "第二周学习复盘",
           "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 三、踩坑记录",
           "chunk_id": 13,
-          "score": 0.5152
+          "score": 0.4905
+        },
+        {
+          "doc": "第三周学习复盘",
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 三、踩坑记录",
+          "chunk_id": 11,
+          "score": 0.489
         },
         {
           "doc": "第三周学习复盘",
           "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 一、本周时间线 > 周五 — 分析测试报告 + 修复问题",
           "chunk_id": 5,
-          "score": 0.4855
+          "score": 0.4546
+        },
+        {
+          "doc": "第四五周整合设计_RAG与记忆系统",
+          "section": "第一部分：第四周 RAG（地基） > RAG-4：为什么只检索不够（rerank / 引用约束）",
+          "chunk_id": 5,
+          "score": 0.4527
+        },
+        {
+          "doc": "README",
+          "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > 工具设计层面",
+          "chunk_id": 3,
+          "score": 0.4498
         },
         {
           "doc": "README",
           "section": "Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计",
           "chunk_id": 5,
-          "score": 0.4837
+          "score": 0.4485
         },
         {
           "doc": "Agent_Loop_设计笔记",
-          "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.2 降级机制未触发说明了什么",
-          "chunk_id": 13,
-          "score": 0.4817
+          "section": "Agent Loop 设计笔记 > 五、未解决的问题（留给后续周次） > Q4：如何做到真正的\"在线学习\"？",
+          "chunk_id": 22,
+          "score": 0.4415
+        },
+        {
+          "doc": "实验结论",
+          "section": "第三周周三实验结论 > 实验三：tools + response_format 互斥性（最关键） > tools + json_object → 400 报错（需要 messages 含 \"json\"）",
+          "chunk_id": 3,
+          "score": 0.4385
         }
       ],
-      "answer_preview": "根据你的本地笔记，URL 黑名单主要用于 **`fetch_webpage` 工具的预检测与规避机制**，其设计目的和用法如下：\n\n- **用途**：避免对已知存在反爬机制、会返回 403 禁止访问（如 Medium、某些新闻站点）的 URL 发起无效抓取请求，从而减少 Agent Loop 中因失败导致的轮次浪费和耗时增加 `[README#Search Agent — Week 2 Demo > 已知问题 & 待改进 > 待改进 > 工具设计]`。\n\n- **实现方式设想**：在调用 `fetch_webpage` 前，先进行 URL 预检测（例如 HEAD 请求），检查 `Content"
+      "answer_preview": "根据你笔记中的记录，**URL 黑名单目前并不是一个已实现的功能，而是一个\"待改进\"的设计方案**。以下是相关细节：\n\n---\n\n### 1. 问题背景：为什么需要黑名单\n\n- `fetch_webpage` 工具在抓取 Medium、DataCamp 等站点时，**必然会返回 403**（这些站点有反爬机制）[第二周学习复盘#踩坑记录]。\n- 但工具当时**没有黑名单或预检测机制**，每次都会尝试抓取，失败后浪费一整轮 Agent 循环 [week_2/README#已知问题-工具设计层面]。\n\n### 2. 黑名单的设计方案\n\n你的笔记中规划了两层预检测机制 [week_2/README#"
     },
     {
       "id": 8,
@@ -281,9 +497,9 @@
       "category": "tech_concept",
       "expect_search": true,
       "expect_retrieve": false,
-      "actual_search": false,
+      "actual_search": true,
       "actual_retrieve": true,
-      "search_correct": false,
+      "search_correct": true,
       "retrieve_correct": false,
       "has_answer": true,
       "passed": false,
@@ -291,41 +507,41 @@
       "retrieval_correction_injected": false,
       "search_correction_injected": false,
       "fallback_triggered": false,
-      "total_turns": 2,
-      "duration_ms": 17418,
+      "total_turns": 3,
+      "duration_ms": 30830,
       "retrieved_chunks": [
         {
           "doc": "第二周学习复盘",
-          "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第四周（RAG）",
-          "chunk_id": 23,
-          "score": 0.6791
-        },
-        {
-          "doc": "第四五周整合设计_RAG与记忆系统",
-          "section": "第二部分：第五周记忆系统（上层） > 目标架构 search_agent v3.0",
-          "chunk_id": 11,
-          "score": 0.6391
-        },
-        {
-          "doc": "第二周学习复盘",
-          "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析",
-          "chunk_id": 20,
-          "score": 0.6293
+          "section": "第二周学习复盘：工具调用与单 Agent 雏形 > 七、对后续 Roadmap 的思考 > 第五周（记忆系统）",
+          "chunk_id": 24,
+          "score": 0.5948
         },
         {
           "doc": "第三周学习复盘",
-          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 六、对后续 Roadmap 的思考 > 第四周（RAG）",
-          "chunk_id": 17,
-          "score": 0.6291
+          "section": "第三周学习复盘：提示词、结构化输出与控制循环 > 二、关键认知变化 > 认知 1：Prompt 优化和代码检查是互补关系，不是替代关系",
+          "chunk_id": 6,
+          "score": 0.4449
         },
         {
-          "doc": "第四五周整合设计_RAG与记忆系统",
-          "section": "第四 + 五周整合设计：Agentic RAG + 记忆系统",
-          "chunk_id": 0,
-          "score": 0.6274
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 三、从测试数据中学到的 > 3.3 Prompt 和代码两层防御的协作关系",
+          "chunk_id": 14,
+          "score": 0.4406
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 一、Agent Loop 的本质：一个带安全网的决策循环 > 1.3 我的理解：Agent Loop = 决策循环 + 三张安全网",
+          "chunk_id": 3,
+          "score": 0.4294
+        },
+        {
+          "doc": "Agent_Loop_设计笔记",
+          "section": "Agent Loop 设计笔记 > 二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 核心设计决策：降级阈值为什么是 2",
+          "chunk_id": 7,
+          "score": 0.4243
         }
       ],
-      "answer_preview": "根据本地知识库检索结果，**本项目语境下的 “MCP 协议” 并非指某个已发布的标准协议（如 Model Context Protocol），而是你在第二周评测中用作测试案例的一个技术概念（Case 2）**，用于验证 search_agent 的工具调用能力：\n\n- 在第二周的评测分析中，“MCP 协议”被明确列为一个成功触发 `web_search` 工具的典型案例：模型正确识别其为需实时检索的技术术语，并通过搜索 snippet 完成总结，全程仅用 2 轮即完成 `[第二周学习复盘#第二周学习复盘：工具调用与单 Agent 雏形 > 六、评测结果分析 > 逐案分析#chunk_id=20"
+      "answer_preview": "## MCP（Model Context Protocol）是什么？\n\n**MCP（Model Context Protocol，模型上下文协议）** 是由 **Anthropic 于 2024 年 11 月**推出的一个**开放标准和开源框架**，旨在为 AI 系统（如大语言模型）连接外部数据源和工具提供统一的协议标准。\n\n### 核心要解决的问题\n\n即使是最强大的 AI 模型，也受限于与数据的隔离——被困在信息孤岛和遗留系统之后。每接入一个新的数据源，都需要一套独立的自定义实现，真正互联的系统很难规模化扩展。MCP 用**一个统一协议**替代了碎片化的集成方式。\n\n### 架构设计\n\nMC"
     }
   ],
   "summary": {
@@ -333,9 +549,9 @@
     "failed": 1,
     "pass_rate": "7/8 (88%)",
     "search_correction_count": 0,
-    "retrieval_correction_count": 0,
+    "retrieval_correction_count": 1,
     "fallback_count": 0,
-    "avg_turns": 1.75,
-    "avg_duration_ms": 10573.75
+    "avg_turns": 2.375,
+    "avg_duration_ms": 18138.875
   }
 }
