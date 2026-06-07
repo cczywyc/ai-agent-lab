@@ -1,0 +1,29 @@
+# week_6/search_agent 直接依赖（手工筛选，非 pip freeze 全量快照）
+# 版本 = 第六周复盘记录的验证环境（LangGraph 1.2.4 + checkpoint-sqlite 3.1.0）
+#
+# 环境要求：
+#   - Python >= 3.11
+#   - 解释器须支持 sqlite 扩展加载（enable_load_extension）：
+#     Linux/WSL2 发行版 Python 默认支持；macOS 勿用 python.org 官网安装包
+#     （未编译该支持，SqliteStore 语义索引起不来），用 miniconda/homebrew 的 Python
+#
+# 用法：python -m venv .venv && .venv/bin/pip install -r requirements.txt
+# 注意：在已有可用 venv 的机器（如 WSL2 原始验证环境）上不必重复执行，
+#       想核对版本一致性用 pip install -r requirements.txt --dry-run 先看会改什么
+
+# —— 核心框架 ——
+langgraph==1.2.4
+langgraph-checkpoint-sqlite==3.1.0   # SqliteStore（连带 sqlite-vec / aiosqlite）
+langchain-core==1.4.1                # 消息类型 + convert_to_openai_messages
+
+# —— 模型与配置 ——
+openai==2.29.0                       # DashScope OpenAI 兼容接口客户端
+python-dotenv==1.2.2
+
+# —— 工具层 ——
+httpx==0.28.1                        # fetch_webpage
+ddgs==9.12.0                         # web_search（DuckDuckGo）
+readability-lxml==0.8.4.1            # fetch_webpage 正文提取（缺失时有降级路径）
+
+# —— RAG 向量库 ——
+numpy==2.4.6

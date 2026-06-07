@@ -1,33 +1,35 @@
 [
   {
-    "turn_number": 2,
-    "user_message": "请记住：以后回答涉及本地文档时，先列结论再列引用。",
-    "assistant_message": "第三周的 Agent Loop 通过以下三项机制协同处理工具连续失败：\n\n1. **引入 `consecutive_errors` 计数器，并采用“成功即重置”策略**：每次工具调用返回错误时计数器递增；一旦任一工具调用成功（无论是否为同一工具），计数器立即清零 `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`。\n\n2. **将连续失败作为触发降级的核心条件**：当 `consecutive_errors` 达到预设阈值（如 ≥2），Loop 主动介入，不再等待模型自行决策，而是强制执行降级动作（例如跳过 `fetch_webpage`，转而基于 `web_search` 返回的 snippet 直接生成回答）`[README#Search Agent — Week 2 Demo > 已知问题 & 待改进 > 已知问题（基于 2026-03-30 实测） > Agent 实现层面]`。\n\n3. **要求 Loop 层主动解析工具返回的结构化错误元数据**：新版设计明确要求 Agent Loop 解析工具响应中的 `recoverable` 和 `suggestion` 字段，而非仅依赖模型理解 JSON；此举使错误恢复逻辑更可靠、可调试，是实现上述降级策略的技术前提 `[第二周学习复盘#第二周学习复盘：工具调用与单 Agent 雏形 > 五、Agent Loop 核心模式 > 当前实现的不足（本周发现）]`。",
+    "turn_number": 1,
+    "user_message": "我们第三周的 Agent Loop 是怎么处理工具连续失败的？",
+    "assistant_message": "根据你们第三周的设计文档，Agent Loop 处理工具连续失败的机制是**\"安全网 2：执行保护\"**，整体设计如下：\n\n---\n\n## 1. 整体架构：三张安全网之一\n\n工具连续失败属于\"模型做了正确决策，但执行失败\"的场景，由**安全网 2（执行保护）**负责检测和降级 [Agent_Loop_设计笔记#1.3]。\n\n## 2. 计数策略：成功即重置\n\n采用最简单的**连续失败计数器**，任何一次成功就归零 [Agent_Loop_设计笔记#连续失败的计数策略]：\n\n```python\nif is_error:\n    consecutive_errors += 1\nelse:\n    consecutive_errors = 0  # 任何一次成功就重置\n```\n\n你们也考虑过\"滑动窗口\"方案（最近 N 次中失败超过 M 次就降级），但认为搜索 Agent 的工具调用是线性的（搜索 → 抓取 → 搜索 → 抓取），不存在成功和失败交替出现的常见场景，所以简单计数就够了 [Agent_Loop_设计笔记#连续失败的计数策略]。\n\n## 3. 降级阈值：设为 2\n\n连续失败 **2 次**即触发降级 [Agent_Loop_设计笔记#核心设计决策：降级阈值为什么是 2]：\n\n| 阈值 | 效果 | 评价 |\n|------|------|------|\n| 1 | 1 次失败就降级 | 太敏感，偶发 403 就放弃 |\n| **2** | **2 次失败后降级，剩 3-4 轮给回答** | **平衡点 ✅** |\n| 3 | 3 次失败后降级 | 留给降级回答的轮次不够 |\n\n选 2 的直接原因来自第二周 Case 3 的教训——连续 5 次 `fetch_webpage` 失败，全部轮次浪费，最终无答案输出 [Agent_Loop_设计笔记#核心设计决策：降级阈值为什么是 2]。\n\n## 4. 降级动作：注入降级指令\n\n触发降级后，Agent Loop 向对话中注入一条**降级指令**，告诉模型\"放弃抓取，用已有 snippet 总结回答\" [Agent_Loop_设计笔记#核心设计决策：降级指令放在 user 角色]。\n\n由于千问 API 只支持一条 system message 在开头、不能中途插入，降级指令以 `role: \"user\"` 注入，并加 `[System Notice]` 前缀让模型区分来源 [Agent_Loop_设计笔记#核心设计决策：降级指令放在 user 角色]。\n\n## 5. 资源配合：max_turns 从 5 调到 6\n\n多出的 1 轮专门为降级预留空间 [Agent_Loop_设计笔记#max_turns 从 5 调到 6]：\n\n```\nworst case: 搜索(1) → 抓取失败(2) → 抓取失败(3) → 降级注入(3) → 降级回答(4)\n留 2 轮 buffer: 降级回答不够好时，还有 2 轮供模型补充搜索\n```\n\n## 6. 实际测试结果：0/10 触发\n\n有意思的是，第三周测试中降级机制**一次都没触发** [Agent_Loop_设计笔记#3.2 降级机制未触发说明了什么][第三周学习复盘#周五]。原因是 v2 的 prompt 层面已经解决了问题——模型在 Case 3 中直接用 snippet 回答，根本没调 `fetch_webpage`，所以不存在连续失败的场景。\n\n你们对此的总结是：**\"最好的安全网是永远不需要接住人的安全网\"**——prompt 层（预防）解决了 80% 的问题，代码层（治疗）只需在关键时刻兜底 [Agent_Loop_设计笔记#3.3 Prompt 和代码两层防御的协作关系]。\n\n## 7. 遗留问题\n\n降级后的回答质量尚无保障——snippet 信息量可能不足以回答复杂问题，后续需要在降级指令中加入\"信息不足时诚实告知用户而不是编造\"的约束 [Agent_Loop_设计笔记#Q2：降级后的回答质量如何保证]。",
     "tool_summaries": [
+      "retrieve_documents(✓)",
+      "retrieve_documents(✓)",
       "retrieve_documents(✓)"
     ],
     "used_retrieve": true,
     "used_search": false,
-    "timestamp": 1780563089.349697
+    "timestamp": 1780849368.564008
   },
   {
-    "turn_number": 3,
-    "user_message": "刚才那个连续失败机制里，consecutive_errors 是怎么重置的？",
-    "assistant_message": "`consecutive_errors` 采用 **“成功即重置”策略**：  \n✅ 只要**任一工具调用成功**（无论调用的是 `retrieve_documents`、`web_search` 还是 `fetch_webpage`），该计数器就**立即清零为 0**；  \n❌ 不依赖是否同一工具、不等待轮次结束、不按时间或滑动窗口衰减。\n\n该设计明确排除了“仅同一工具成功才重置”或“需连续多次成功才重置”等更复杂逻辑，以匹配搜索 Agent 的典型线性流程（如 `web_search` 成功 → `fetch_webpage` 失败 → 但因前一步已成功，计数器归零，避免误触发降级）。\n\n> 引用来源：  \n> - `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`（第2轮）  \n> - `[Agent_Loop_设计笔记#二、三个控制点的设计取舍 > 2.2 控制点 2：执行保护（检查机制 2） > 连续失败的计数策略：成功即重置]`（第1轮）",
+    "turn_number": 2,
+    "user_message": "请记住：以后回答涉及本地文档时，先列结论再列引用。",
+    "assistant_message": "明白了，我确认以下工作流程：\n\n1. **先查本地文档**：涉及项目相关问题时，优先调用 `retrieve_documents` 检索本地知识库，不凭记忆作答。\n2. **基于召回 chunk 回答**：回答内容严格基于工具返回的 chunk，不编造细节。\n3. **先结论后引用**：每条事实先给出结论，再标注 `[doc#section]` 来源。\n\n有具体问题随时问我，我会按这个流程来回答。",
     "tool_summaries": [],
     "used_retrieve": false,
     "used_search": false,
-    "timestamp": 1780563097.1993542
+    "timestamp": 1780849376.769231
   },
   {
-    "turn_number": 4,
+    "turn_number": 3,
     "user_message": "另外简单说一下，本项目的 RAG chunking 是按什么切的？",
-    "assistant_message": "本项目的 RAG chunking 采用 **「按结构切」为主、语义完整性优先的策略**，具体如下：\n\n- **核心切分依据是文档的 Markdown 结构**：优先在标题（`#`, `##`, `###`）、段落边界、代码块或列表项之间进行切分，而非固定字符数或 Token 数；因为本地知识库（如设计笔记、复盘文档）本身结构化程度高，按结构切能最大程度保留语义单元的完整性 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **每个 chunk 必须携带完整元数据**：包括 `doc`（源文件名）、`section`（标题路径，如 `第三周学习复盘 > 六、对后续 Roadmap 的思考 > 第四周（RAG）`）、`chunk_id`（序号）和 `text`（正文），其中 `section` 和 `chunk_id` 是实现“引用约束”（即回答中可精准标注来源）的技术前提 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。\n\n- **未采用纯语义分块（如 sentence-transformer 动态聚类）**：当前阶段明确选择结构化切分作为起点，因其更可控、可调试、且与本地笔记格式高度匹配；而“固定大小 + 重叠”的方案仅作为起步备选，非主策略 `[第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]`。",
+    "assistant_message": "## 结论\n\n本项目的 RAG chunking **优先按 Markdown 结构切（标题/段落），而非固定大小硬切**。\n\n具体设计：\n\n1. **首选策略：按结构切**\n   因为笔记本身结构化程度高（Markdown 标题层级清晰），按标题切的语义完整性远好于按字数硬切 [第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]。\n\n2. **备选/兜底策略：固定大小 + 重叠**\n   起步参考值是 500 token / 重叠 50，但只在结构切不适用时使用 [第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]。\n\n3. **每个 chunk 保存的元数据**\n   ```json\n   {\"doc\": 文件名, \"section\": 标题路径, \"chunk_id\": 序号, \"text\": 正文}\n   ```\n   其中 `section` 和 `chunk_id` 是后续\"引用约束\"的来源字段，也是你现在看到的 `[doc#section]` 引用格式的根基 [第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]。\n\n4. **设计时已识别的失败模式**\n   > 「召回不准」很多时候根因在 chunking——切得太碎丢上下文，切得太大稀释语义 [第四五周整合设计_RAG与记忆系统#第一部分：第四周 RAG（地基） > RAG-1：文档摄入与 Chunking]。",
     "tool_summaries": [
       "retrieve_documents(✓)"
     ],
     "used_retrieve": true,
     "used_search": false,
-    "timestamp": 1780563116.1945183
+    "timestamp": 1780849393.5072482
   }
 ]
