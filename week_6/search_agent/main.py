@@ -122,6 +122,32 @@ def judge_case(case: dict, state: dict) -> dict:
     }
 
 
+def build_case_record(case: dict, state: dict, duration_ms: int) -> dict:
+    """
+    单用例的完整报告行 = judge_case 判定 + state 可观测字段。
+    抽出为纯函数与 judge_case 同款可单测（test_criteria.py C5）。
+    empty_retries：agent 节点空回答重试计数——量化"重试救回率"用。
+    """
+    answer = state.get("answer", "")
+    return {
+        "id": case["id"],
+        "query": case["query"],
+        "category": case["category"],
+        "expect_search": case["expect_search"],
+        "expect_retrieve": case["expect_retrieve"],
+        **judge_case(case, state),
+        "correction_triggered": state.get("correction_triggered", False),
+        "retrieval_correction_injected": state.get("retrieval_correction_injected", False),
+        "search_correction_injected": state.get("search_correction_injected", False),
+        "fallback_triggered": state.get("fallback_triggered", False),
+        "empty_retries": state.get("empty_retries", 0),
+        "total_turns": state.get("turn_count", 0),
+        "duration_ms": duration_ms,
+        "retrieved_chunks": state.get("retrieved_chunks", []),
+        "answer_preview": answer[:300],
+    }
+
+
 # ============================================================
 # 图调用封装
 # ============================================================
@@ -380,33 +406,17 @@ def run_test(rag_only: bool = False):
         # 每个用例独立 thread：测试隔离（per-case 状态互不串扰）
         state, ms = invoke_graph(graph, query, f"test-{cid}", use_memory=False)
 
-        verdict = judge_case(case, state)
-        answer = state.get("answer", "")
-        passed += verdict["passed"]
-        passed_legacy += verdict["passed_legacy"]
+        row = build_case_record(case, state, ms)
+        passed += row["passed"]
+        passed_legacy += row["passed_legacy"]
 
-        print(f"    实际: search={verdict['actual_search']}, "
-              f"retrieve={verdict['actual_retrieve']}")
+        print(f"    实际: search={row['actual_search']}, "
+              f"retrieve={row['actual_retrieve']}")
         print(f"    {state_summary(state, ms)}")
-        print(f"    回答片段: {answer[:120]}")
-        print(f"    结果: {'✅ PASS' if verdict['passed'] else '❌ FAIL'}\n")
+        print(f"    回答片段: {row['answer_preview'][:120]}")
+        print(f"    结果: {'✅ PASS' if row['passed'] else '❌ FAIL'}\n")
 
-        report["results"].append({
-            "id": cid,
-            "query": query,
-            "category": case["category"],
-            "expect_search": case["expect_search"],
-            "expect_retrieve": case["expect_retrieve"],
-            **verdict,
-            "correction_triggered": state.get("correction_triggered", False),
-            "retrieval_correction_injected": state.get("retrieval_correction_injected", False),
-            "search_correction_injected": state.get("search_correction_injected", False),
-            "fallback_triggered": state.get("fallback_triggered", False),
-            "total_turns": state.get("turn_count", 0),
-            "duration_ms": ms,
-            "retrieved_chunks": state.get("retrieved_chunks", []),
-            "answer_preview": answer[:300],
-        })
+        report["results"].append(row)
 
     total = len(cases)
     report["summary"] = {
@@ -422,6 +432,8 @@ def run_test(rag_only: bool = False):
         "retrieval_correction_count": sum(
             1 for r in report["results"] if r["retrieval_correction_injected"]),
         "fallback_count": sum(1 for r in report["results"] if r["fallback_triggered"]),
+        # 空回答重试总数（agent 节点内，T9）——重试救回率 = 有重试但 has_answer 的占比
+        "empty_retry_count": sum(r["empty_retries"] for r in report["results"]),
         "avg_turns": sum(r["total_turns"] for r in report["results"]) / total if total else 0,
         "avg_duration_ms": sum(r["duration_ms"] for r in report["results"]) / total if total else 0,
     }
@@ -434,6 +446,7 @@ def run_test(rag_only: bool = False):
     print(f"  联网纠正触发:   {s['search_correction_count']} 次")
     print(f"  检索纠正触发:   {s['retrieval_correction_count']} 次")
     print(f"  降级触发:       {s['fallback_count']} 次")
+    print(f"  空回答重试:     {s['empty_retry_count']} 次")
     print(f"  平均轮次:       {s['avg_turns']:.1f}")
     print(f"  平均耗时:       {s['avg_duration_ms']:.0f}ms")
 

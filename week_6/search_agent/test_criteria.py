@@ -8,6 +8,7 @@
      同时 passed_legacy 复现旧口径（报告可比性）
   C4 judge_case：expect_retrieve=None → 不判该维度（Case 8 边界编码），
      legacy_expect_retrieve 提供旧口径对照
+  C5 build_case_record：报告行含 empty_retries 可观测列（量化"重试救回率"）
 
 跑法：../../.venv/bin/python test_criteria.py
 """
@@ -15,7 +16,7 @@
 import sys
 
 from config import PLACEHOLDER_PREFIXES, is_placeholder_answer
-from main import judge_case
+from main import judge_case, build_case_record
 
 CHECKS = []
 
@@ -96,13 +97,29 @@ def c4():
     check("联网兜底没发生 → FAIL（必判维度仍严）", not r["passed"])
 
 
+def c5():
+    print("\n[C5] build_case_record：报告行含 empty_retries 可观测列")
+    case = {"id": 9, "query": "测试问题", "category": "test",
+            "expect_search": True, "expect_retrieve": False}
+
+    state = make_state(search=True)
+    state.update({"empty_retries": 2, "turn_count": 3})
+    row = build_case_record(case, state, 1234)
+    check("empty_retries 进报告行", row.get("empty_retries") == 2)
+    check("判定字段并入报告行", row["passed"] and row["actual_search"])
+    check("轮次/耗时记录", row["total_turns"] == 3 and row["duration_ms"] == 1234)
+
+    row0 = build_case_record(case, make_state(search=True), 1)
+    check("state 无该字段时缺省 0", row0.get("empty_retries") == 0)
+
+
 # ============================================================
 # 入口
 # ============================================================
 
 def main():
     print("=== 判据测试（离线） ===")
-    for t in (c1, c2, c3, c4):
+    for t in (c1, c2, c3, c4, c5):
         t()
 
     passed = sum(1 for _, ok in CHECKS if ok)
