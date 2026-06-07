@@ -308,26 +308,46 @@ def test_s9_graph_e2e():
     tmp = Path(tempfile.mkdtemp())
     mgr = MemoryManager(persist_dir=tmp, autoload=False)
 
-    real_call, real_get = nodes.call_model, memory_pkg.get_memory
+    real_call, real_get, real_exec = nodes.call_model, memory_pkg.get_memory, nodes.execute_tool
     captured_windows: list[list[dict]] = []
 
-    def scripted_model(answers):
-        it = iter(answers)
+    def scripted_model(steps):
+        """str → stop 响应；非 str → 原样返回（可混入 tool_calls 响应）。"""
+        it = iter(steps)
         def call(oai_messages):
             captured_windows.append(oai_messages)
+            step = next(it)
+            if not isinstance(step, str):
+                return step
             return SimpleNamespace(choices=[SimpleNamespace(
-                message=SimpleNamespace(content=next(it), tool_calls=None),
+                message=SimpleNamespace(content=step, tool_calls=None),
                 finish_reason="stop",
             )])
         return call
+
+    # 第 2 轮先检索再引用（v4.2 契约：引用须对上本轮检索来源，否则不入 store——
+    # 旧 fixture "零检索带引用直答"正是该被拒收的噪音场景，见 S13/S14）
+    retrieve_resp = SimpleNamespace(choices=[SimpleNamespace(
+        message=SimpleNamespace(content="", tool_calls=[SimpleNamespace(
+            id="call_0",
+            function=SimpleNamespace(name="retrieve_documents",
+                                     arguments='{"query": "降级机制"}'),
+        )]),
+        finish_reason="tool_calls",
+    )])
 
     try:
         memory_pkg.get_memory = lambda: mgr
         nodes.call_model = scripted_model([
             "好的，已记住：先列结论再列引用。",
+            retrieve_resp,
             "- 连续失败达到阈值后触发降级 [设计笔记#降级机制]。",
             "结论：阈值是 2。",
         ])
+        nodes.execute_tool = lambda name, args: {"results": [
+            {"doc": "设计笔记", "section": "降级机制", "chunk_id": 3,
+             "text": "连续失败达到阈值触发降级", "score": 0.9},
+        ]}
         graph = build_graph(store=store)
         cfg = {"configurable": {"thread_id": "s9", "use_memory": True},
                "recursion_limit": RECURSION_LIMIT}
@@ -350,6 +370,7 @@ def test_s9_graph_e2e():
     finally:
         nodes.call_model = real_call
         memory_pkg.get_memory = real_get
+        nodes.execute_tool = real_exec
 
 
 # ============================================================
@@ -390,6 +411,152 @@ def test_s11_empty_answer_not_recorded():
     finally:
         nodes.call_model = real_call
         memory_pkg.get_memory = real_get
+
+
+# ============================================================
+# S12 — 时序反转：记忆记录审批后的回答（update_memory 在 human_review 之后）
+# ============================================================
+def test_s12_memory_records_post_review_answer():
+    print("\nS12 时序反转：记忆记录审批后的回答")
+    import config
+    import nodes
+    import memory as memory_pkg
+    from langgraph.types import Command
+    from memory.manager import MemoryManager
+    from graph import build_graph
+    from config import RECURSION_LIMIT
+
+    store = fresh_store()
+    tmp = Path(tempfile.mkdtemp())
+    mgr = MemoryManager(persist_dir=tmp, autoload=False)
+
+    real_call, real_get = nodes.call_model, memory_pkg.get_memory
+    try:
+        memory_pkg.get_memory = lambda: mgr
+        nodes.call_model = lambda msgs: SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content="草稿回答", tool_calls=None),
+            finish_reason="stop",
+        )])
+        config.INTERRUPT_ENABLED = True
+        graph = build_graph(store=store)
+        cfg = {"configurable": {"thread_id": "s12", "use_memory": True},
+               "recursion_limit": RECURSION_LIMIT}
+
+        mid = graph.invoke({"user_message": "帮我把降级机制总结成一句话。"}, cfg)
+        check("暂停时草稿可见", "__interrupt__" in mid
+              and mid["__interrupt__"][0].value.get("draft_answer") == "草稿回答")
+        check("暂停时记忆尚未写入（update_memory 在审批之后）",
+              len(mgr.short.turns) == 0, f"{len(mgr.short.turns)} turns at pause")
+
+        final = graph.invoke(Command(resume="人工改写后的回答"), cfg)
+        check("最终回答为改写文本", final["answer"] == "人工改写后的回答")
+        check("短期记忆存的是用户实际看到的版本",
+              len(mgr.short.turns) == 1
+              and mgr.short.turns[0].assistant_message == "人工改写后的回答",
+              mgr.short.turns[0].assistant_message if mgr.short.turns else "no turns")
+    finally:
+        config.INTERRUPT_ENABLED = False
+        nodes.call_model = real_call
+        memory_pkg.get_memory = real_get
+
+
+# ============================================================
+# S13 — 事实抽取白名单（踩坑 #3 收紧：引用须对上 allowed_sources）
+# ============================================================
+def test_s13_extractor_source_whitelist():
+    print("\nS13 事实抽取白名单：引用须在 allowed_sources 内")
+    from memory.extractor import extract_fact_candidates
+
+    answer = ("- 降级阈值是连续失败 2 次 [设计笔记#降级机制]。\n"
+              "- 这条是编造引用的句子 [幻觉文档#不存在的节]。\n"
+              "- 这条引用格式带空格抖动 [设计笔记 # 降级机制]。")
+    allowed = {("设计笔记", "降级机制")}
+
+    got = extract_fact_candidates(answer, allowed_sources=allowed)
+    texts = [t for t, _ in got]
+    check("白名单内引用被抽取", any("降级阈值" in t for t in texts), str(texts))
+    check("编造引用被拒收", not any("编造" in t for t in texts), str(texts))
+    check("空格格式抖动被归一化吸收", any("空格抖动" in t for t in texts), str(texts))
+
+    # 混合引用：保留事实，但来源只记真实的那部分
+    mixed = "- 混合引用的句子结论 [设计笔记#降级机制][幻觉文档#不存在的节]。"
+    got = extract_fact_candidates(mixed, allowed_sources=allowed)
+    check("混合引用保留但只记真实来源",
+          len(got) == 1 and got[0][1] == "设计笔记#降级机制", str(got))
+
+    # chunk_id 三段式引用照样校验（取前两段对白名单）
+    with_chunk = "- 带 chunk_id 的三段式引用 [设计笔记#降级机制#7]。"
+    got = extract_fact_candidates(with_chunk, allowed_sources=allowed)
+    check("三段式引用按 (doc, section) 校验通过", len(got) == 1, str(got))
+
+    # 白名单为空集 = 本轮没检索 → 任何引用都不算确认
+    got = extract_fact_candidates(answer, allowed_sources=set())
+    check("本轮零检索 → 全部拒收", got == [], str(got))
+
+    # 不传白名单 = 旧行为（向后兼容，三条都抽）
+    got_legacy = extract_fact_candidates(answer)
+    check("不传白名单 = 现行为（向后兼容）", len(got_legacy) == 3, str(got_legacy))
+
+
+# ============================================================
+# S14 — 契约贯通：图 e2e 里编造引用进不了 store
+# ============================================================
+def test_s14_fact_contract_e2e():
+    print("\nS14 契约贯通：本轮真实检索来源才进 store")
+    import nodes
+    import memory as memory_pkg
+    from memory.manager import MemoryManager
+    from memory import long_term as lt
+    from memory.ltm_store import NS_FACTS
+    from graph import build_graph
+    from config import RECURSION_LIMIT
+
+    store = fresh_store()
+    tmp = Path(tempfile.mkdtemp())
+    mgr = MemoryManager(persist_dir=tmp, autoload=False)
+
+    real_call, real_get, real_exec = nodes.call_model, memory_pkg.get_memory, nodes.execute_tool
+    try:
+        memory_pkg.get_memory = lambda: mgr
+
+        tool_resp = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content="", tool_calls=[SimpleNamespace(
+                id="call_0",
+                function=SimpleNamespace(name="retrieve_documents",
+                                         arguments='{"query": "降级机制"}'),
+            )]),
+            finish_reason="tool_calls",
+        )])
+        answer = ("- 降级在连续失败 2 次后触发 [设计笔记#降级机制]。\n"
+                  "- 这条来源是模型编造的 [幻觉文档#不存在的节]。")
+        stop_resp = SimpleNamespace(choices=[SimpleNamespace(
+            message=SimpleNamespace(content=answer, tool_calls=None),
+            finish_reason="stop",
+        )])
+        responses = iter([tool_resp, stop_resp])
+        nodes.call_model = lambda msgs: next(responses)
+        nodes.execute_tool = lambda name, args: {"results": [
+            {"doc": "设计笔记", "section": "降级机制", "chunk_id": 3,
+             "text": "连续失败 2 次触发降级", "score": 0.9},
+        ]}
+
+        graph = build_graph(store=store)
+        cfg = {"configurable": {"thread_id": "s14", "use_memory": True},
+               "recursion_limit": RECURSION_LIMIT}
+        graph.invoke({"user_message": "帮我查一下降级机制的触发条件。"}, cfg)
+
+        items = lt._list_all(store, NS_FACTS)
+        facts = [it.value["fact"] for it in items]
+        check("真实来源的事实进了 store",
+              any("降级在连续失败" in f for f in facts), str(facts))
+        check("编造来源的句子被拒收（踩坑 #3 收口）",
+              not any("编造" in f for f in facts), str(facts))
+        check("恰好 1 条事实", lt.counts(store)["facts"] == 1,
+              str(lt.counts(store)))
+    finally:
+        nodes.call_model = real_call
+        memory_pkg.get_memory = real_get
+        nodes.execute_tool = real_exec
 
 
 # ============================================================
@@ -440,6 +607,9 @@ if __name__ == "__main__":
         test_s9_graph_e2e,
         test_s10_window_includes_system_prompt,
         test_s11_empty_answer_not_recorded,
+        test_s12_memory_records_post_review_answer,
+        test_s13_extractor_source_whitelist,
+        test_s14_fact_contract_e2e,
     ]
     failed = 0
     for t in tests:

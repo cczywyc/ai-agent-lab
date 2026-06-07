@@ -159,6 +159,30 @@ INTERRUPT_ENABLED = False
 RECURSION_LIMIT = 50
 
 # ============================================================
+# 占位符回答（v4.2 第七周前重构：写入方与判读方共用同一份名单）
+# ============================================================
+# 写入方：nodes.agent（[错误]）、nodes.finalize（[达到最大轮次] / [模型返回空回答]）
+# 判读方：main.run_test 的 has_answer 判据、nodes.update_memory 的记忆跳过逻辑
+# 教训（06-05 复跑 Case 5）：判据漏一个前缀，空回答就成了 PASS——
+# 新增占位符必须进这份名单，判据和跳过逻辑自动跟上。
+
+PLACEHOLDER_MAX_TURNS = "[达到最大轮次]"
+PLACEHOLDER_ERROR = "[错误]"
+PLACEHOLDER_EMPTY = "[模型返回空回答]"
+
+PLACEHOLDER_PREFIXES = (
+    PLACEHOLDER_MAX_TURNS,
+    PLACEHOLDER_ERROR,
+    PLACEHOLDER_EMPTY,
+)
+
+
+def is_placeholder_answer(answer: str) -> bool:
+    """answer 为空或以任一占位符前缀开头 → 不是给用户的有效回答。"""
+    return not answer or any(answer.startswith(p) for p in PLACEHOLDER_PREFIXES)
+
+
+# ============================================================
 # 纠正指令
 # ============================================================
 

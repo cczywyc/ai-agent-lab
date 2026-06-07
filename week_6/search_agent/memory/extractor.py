@@ -90,6 +90,13 @@ def extract_preference(message: str) -> dict | None:
 # ============================================================
 # 策略：只在回答带 [doc#section] 形式的引用时才抽取，引用即事实"已确认"。
 # 没有引用的回答可能是模型自由发挥，不进入长期事实。
+#
+# v4.2 收紧（踩坑 #3：引用格式不稳产生抽取噪音，事实 #6/#7 实例）：
+# "已确认"的完整契约 = 引用格式对 且 引用真有出处。调用方可传
+# allowed_sources（本轮真实检索到的 (doc, section) 集合）：
+#   - 引用对不上白名单 → 按无引用处理，该句不抽（编造/幻觉引用拒收）
+#   - 白名单为空集 = 本轮零检索 → 任何引用都不算确认
+#   - 不传（None）→ 旧行为，向后兼容
 
 # 匹配 [doc#section] 或 [doc#section#chunk_id] 引用
 CITATION_RE = re.compile(r"\[([^\[\]\n]+?#[^\[\]\n]+?)\]")
@@ -98,12 +105,23 @@ CITATION_RE = re.compile(r"\[([^\[\]\n]+?#[^\[\]\n]+?)\]")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[。.！!？?])\s*")
 
 
-def extract_fact_candidates(answer: str) -> list[tuple[str, str]]:
+def _parse_citation(src: str) -> tuple[str, str]:
+    """'doc#section[#chunk_id]' → (doc, section)。strip 吸收空格类格式抖动。"""
+    parts = [p.strip() for p in src.split("#")]
+    return (parts[0], parts[1] if len(parts) > 1 else "")
+
+
+def extract_fact_candidates(
+    answer: str,
+    allowed_sources: set[tuple[str, str]] | None = None,
+) -> list[tuple[str, str]]:
     """
     从助手回答里提取（事实, 来源）对。
 
     规则：含 [doc#section] 引用的句子才算"已确认事实"，
     多个引用拼成 `src1; src2`。
+    传 allowed_sources 时引用须对上白名单（见模块头 v4.2 收紧说明）；
+    混合引用的句子保留，但来源只记白名单内的部分（归一化为 doc#section）。
     """
     if not answer or "[" not in answer:
         return []
@@ -123,6 +141,11 @@ def extract_fact_candidates(answer: str) -> list[tuple[str, str]]:
         sources = CITATION_RE.findall(unit)
         if not sources:
             continue
+        if allowed_sources is not None:
+            verified = [s for s in sources if _parse_citation(s) in allowed_sources]
+            if not verified:
+                continue  # 引用全对不上本轮检索来源 → 按无引用处理，不抽
+            sources = ["#".join(_parse_citation(s)) for s in verified]
         # 去掉行内的引用括号后作为 fact 文本
         clean = CITATION_RE.sub("", unit).strip()
         # 去前导的 markdown bullet / 数字编号

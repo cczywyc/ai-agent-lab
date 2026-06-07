@@ -12,6 +12,8 @@ v3.0 变更：
 """
 
 import json
+from dataclasses import dataclass
+from typing import Callable, Optional
 from urllib.parse import urlparse
 
 from config import BLOCKED_DOMAINS, RETRIEVE_TOP_K, RETRIEVE_MIN_SCORE
@@ -354,6 +356,47 @@ TOOL_REGISTRY = {
     "web_search": web_search,
     "fetch_webpage": fetch_webpage,
     "retrieve_documents": retrieve_documents,
+}
+
+
+# ============================================================
+# 工具副作用声明（v4.2 第七周前重构：tools 节点瘦身）
+# ============================================================
+# 每个工具对 state 的副作用在这里声明，nodes.tools 的循环体是全通用的——
+# 第七周加新工具 = 在 TOOL_REGISTRY/TOOL_DEFINITIONS/TOOL_EFFECTS 各登记一条，
+# 节点体零改动。未登记 TOOL_EFFECTS 的工具照常执行，只是不碰任何标志。
+
+def extract_retrieved_chunks(result: dict) -> list[dict]:
+    """从 retrieve_documents 结果里抽出 chunk 简要信息（v3.0 agent.py 原逻辑）。"""
+    if not isinstance(result, dict) or result.get("error"):
+        return []
+    out = []
+    for r in result.get("results", []) or []:
+        out.append({
+            "doc": r.get("doc"),
+            "section": r.get("section"),
+            "chunk_id": r.get("chunk_id"),
+            "score": r.get("score"),
+        })
+    return out
+
+
+@dataclass(frozen=True)
+class ToolEffect:
+    """一个工具对 state 的副作用声明。"""
+    sets_flag: Optional[str] = None                       # 调过即置 True——成功失败都置（"尝试过"语义，防反复纠正）
+    chunk_extractor: Optional[Callable[[dict], list]] = None  # 成功时从结果抽 chunks（手动累加，决策 B）
+    counts_failures: bool = False                         # 失败计入 consecutive_failures（成功清零是全局规则，不在此声明）
+
+
+TOOL_EFFECTS: dict[str, ToolEffect] = {
+    "web_search": ToolEffect(sets_flag="has_searched"),
+    "retrieve_documents": ToolEffect(
+        sets_flag="has_retrieved", chunk_extractor=extract_retrieved_chunks,
+    ),
+    # v3.0 注释保留：只有 fetch_webpage 失败累计（VectorStoreNotReady 等
+    # 是配置问题，不该触发 fallback）
+    "fetch_webpage": ToolEffect(counts_failures=True),
 }
 
 

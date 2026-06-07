@@ -32,13 +32,14 @@ def route_after_agent(state: AgentState) -> str:
 
 def need_correction(state: AgentState) -> str:
     """
-    复刻 v3.0 分支 1：
-      - 任何工具被调用过 → 尊重模型的 stop，直接 update_memory
+    复刻 v3.0 分支 1（v4.2 起接受的 stop 去 finalize——收尾三连
+    finalize → human_review → update_memory 由顺序边接管）：
+      - 任何工具被调用过 → 尊重模型的 stop，直接 finalize
       - 否则按"检索优先、联网其次"判定，各自最多注入一次
-      - 都不满足 → update_memory
+      - 都不满足 → finalize
     """
     if state.get("has_searched", False) or state.get("has_retrieved", False):
-        return "update_memory"
+        return "finalize"
 
     user_message = state.get("user_message", "")
     if (not state.get("retrieval_correction_injected", False)
@@ -47,7 +48,7 @@ def need_correction(state: AgentState) -> str:
     if (not state.get("search_correction_injected", False)
             and should_have_searched(user_message)):
         return "inject_correction_search"
-    return "update_memory"
+    return "finalize"
 
 
 def after_tools(state: AgentState) -> str:

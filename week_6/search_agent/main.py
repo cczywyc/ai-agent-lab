@@ -26,7 +26,12 @@ from datetime import datetime
 from langgraph.types import Command
 
 import config
-from config import RECURSION_LIMIT
+from config import (
+    RECURSION_LIMIT,
+    PLACEHOLDER_MAX_TURNS,
+    PLACEHOLDER_ERROR,
+    is_placeholder_answer,
+)
 from graph import build_graph
 
 logging.basicConfig(
@@ -62,10 +67,59 @@ TEST_CASES = [
      "expect_search": False, "expect_retrieve": True, "category": "rag_internal"},
 
     # === 混合（本地没覆盖应走联网） ===
+    # expect_retrieve=None：该维度不判（v4.2 判据重审——06-05 复跑两次失败方向相反：
+    # 一次只走本地、一次先本地再联网。边界用例"两种走法都算对"，必判的是联网兜底发生）。
+    # legacy_expect_retrieve 保留旧口径供 passed_legacy 对照。
     {"id": 8, "query": "MCP 协议是什么？",
-     "expect_search": True, "expect_retrieve": False, "category": "tech_concept",
-     "note": "本地未覆盖，走联网兜底"},
+     "expect_search": True, "expect_retrieve": None, "legacy_expect_retrieve": False,
+     "category": "tech_concept",
+     "note": "本地未覆盖，必须联网兜底；先试本地检索不做要求"},
 ]
+
+
+# ============================================================
+# 用例判定（v4.2 从 run_test 抽出为纯函数，test_criteria.py 单测）
+# ============================================================
+
+def judge_case(case: dict, state: dict) -> dict:
+    """
+    单用例判定。v4.2 判据重审（06-05 复跑两项发现的落地）：
+      - has_answer 用 config.is_placeholder_answer——占位符名单收口一处，
+        [模型返回空回答] 不再算有效回答（Case 5 假阳性修复）
+      - expect_search / expect_retrieve 允许 None = 该维度不判
+        （Case 8 边界用例"两种走法都算对"的编码）
+    可比性：同时产出 passed_legacy = 06-04 报告口径（占位符只排除
+    [达到最大轮次]/[错误]，维度全严判；None 维度回退 legacy_expect_*）。
+    """
+    actual_search = state.get("has_searched", False)
+    actual_retrieve = state.get("has_retrieved", False)
+    answer = state.get("answer", "")
+
+    def dim_ok(expected, actual):
+        return True if expected is None else expected == actual
+
+    search_correct = dim_ok(case["expect_search"], actual_search)
+    retrieve_correct = dim_ok(case["expect_retrieve"], actual_retrieve)
+    has_answer = not is_placeholder_answer(answer)
+
+    # —— 旧口径（与 v3.0 / 06-04 报告对照用，不参与 PASS 判定） ——
+    legacy_search = case.get("legacy_expect_search", case["expect_search"])
+    legacy_retrieve = case.get("legacy_expect_retrieve", case["expect_retrieve"])
+    has_answer_legacy = (bool(answer)
+                         and not answer.startswith(PLACEHOLDER_MAX_TURNS)
+                         and not answer.startswith(PLACEHOLDER_ERROR))
+
+    return {
+        "actual_search": actual_search,
+        "actual_retrieve": actual_retrieve,
+        "search_correct": search_correct,
+        "retrieve_correct": retrieve_correct,
+        "has_answer": has_answer,
+        "passed": search_correct and retrieve_correct and has_answer,
+        "passed_legacy": (dim_ok(legacy_search, actual_search)
+                          and dim_ok(legacy_retrieve, actual_retrieve)
+                          and has_answer_legacy),
+    }
 
 
 # ============================================================
@@ -304,7 +358,7 @@ def run_test(rag_only: bool = False):
 
     graph = build_graph()
     report = {
-        "version": "4.0",
+        "version": "4.2",  # v4.2：判据重审（占位符名单收口 + None=不判维度），见 judge_case
         "engine": "langgraph",
         "timestamp": datetime.now().isoformat(),
         "total_cases": len(cases),
@@ -312,45 +366,38 @@ def run_test(rag_only: bool = False):
         "summary": {},
     }
 
-    passed = 0
+    def fmt_expect(v):
+        return "any" if v is None else v
+
+    passed = passed_legacy = 0
     for case in cases:
         cid, query = case["id"], case["query"]
-        exp_search, exp_retrieve = case["expect_search"], case["expect_retrieve"]
 
         print(f"--- Case {cid}: {query}")
-        print(f"    预期: search={exp_search}, retrieve={exp_retrieve}")
+        print(f"    预期: search={fmt_expect(case['expect_search'])}, "
+              f"retrieve={fmt_expect(case['expect_retrieve'])}")
 
         # 每个用例独立 thread：测试隔离（per-case 状态互不串扰）
         state, ms = invoke_graph(graph, query, f"test-{cid}", use_memory=False)
 
-        actual_search = state.get("has_searched", False)
-        actual_retrieve = state.get("has_retrieved", False)
+        verdict = judge_case(case, state)
         answer = state.get("answer", "")
-        search_correct = actual_search == exp_search
-        retrieve_correct = actual_retrieve == exp_retrieve
-        has_answer = (bool(answer)
-                      and not answer.startswith("[达到最大轮次]")
-                      and not answer.startswith("[错误]"))
-        case_passed = search_correct and retrieve_correct and has_answer
-        passed += case_passed
+        passed += verdict["passed"]
+        passed_legacy += verdict["passed_legacy"]
 
-        print(f"    实际: search={actual_search}, retrieve={actual_retrieve}")
+        print(f"    实际: search={verdict['actual_search']}, "
+              f"retrieve={verdict['actual_retrieve']}")
         print(f"    {state_summary(state, ms)}")
         print(f"    回答片段: {answer[:120]}")
-        print(f"    结果: {'✅ PASS' if case_passed else '❌ FAIL'}\n")
+        print(f"    结果: {'✅ PASS' if verdict['passed'] else '❌ FAIL'}\n")
 
         report["results"].append({
             "id": cid,
             "query": query,
             "category": case["category"],
-            "expect_search": exp_search,
-            "expect_retrieve": exp_retrieve,
-            "actual_search": actual_search,
-            "actual_retrieve": actual_retrieve,
-            "search_correct": search_correct,
-            "retrieve_correct": retrieve_correct,
-            "has_answer": has_answer,
-            "passed": case_passed,
+            "expect_search": case["expect_search"],
+            "expect_retrieve": case["expect_retrieve"],
+            **verdict,
             "correction_triggered": state.get("correction_triggered", False),
             "retrieval_correction_injected": state.get("retrieval_correction_injected", False),
             "search_correction_injected": state.get("search_correction_injected", False),
@@ -366,6 +413,10 @@ def run_test(rag_only: bool = False):
         "passed": passed,
         "failed": total - passed,
         "pass_rate": f"{passed}/{total} ({100 * passed / total:.0f}%)" if total else "N/A",
+        # 旧口径通过数（与 v3.0 / 06-04 报告可比；不参与本版 PASS 判定）
+        "passed_legacy": passed_legacy,
+        "pass_rate_legacy": (f"{passed_legacy}/{total} ({100 * passed_legacy / total:.0f}%)"
+                             if total else "N/A"),
         "search_correction_count": sum(
             1 for r in report["results"] if r["search_correction_injected"]),
         "retrieval_correction_count": sum(
@@ -379,7 +430,7 @@ def run_test(rag_only: bool = False):
     print("  测试总结")
     print("=" * 60)
     s = report["summary"]
-    print(f"  通过率:         {s['pass_rate']}")
+    print(f"  通过率:         {s['pass_rate']}（旧口径对照: {s['pass_rate_legacy']}）")
     print(f"  联网纠正触发:   {s['search_correction_count']} 次")
     print(f"  检索纠正触发:   {s['retrieval_correction_count']} 次")
     print(f"  降级触发:       {s['fallback_count']} 次")

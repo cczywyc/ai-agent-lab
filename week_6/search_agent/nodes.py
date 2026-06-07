@@ -44,9 +44,18 @@ from config import (
     CORRECTION_MESSAGE,
     FALLBACK_MESSAGE,
     RETRIEVAL_CORRECTION_MESSAGE,
+    PLACEHOLDER_MAX_TURNS,
+    PLACEHOLDER_ERROR,
+    PLACEHOLDER_EMPTY,
+    is_placeholder_answer,
 )
 from state import AgentState, PER_QUERY_DEFAULTS
-from tools import TOOL_DEFINITIONS, execute_tool  # noqa: F401  (execute_tool 供测试 monkeypatch)
+from tools import (  # noqa: F401  (execute_tool 供测试 monkeypatch)
+    TOOL_DEFINITIONS,
+    TOOL_EFFECTS,
+    ToolEffect,
+    execute_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,21 +118,6 @@ def _last_ai_content(state: AgentState) -> str:
     return ""
 
 
-def _extract_retrieved_chunks(result: dict) -> list[dict]:
-    """从 retrieve_documents 结果里抽出 chunk 简要信息（v3.0 agent.py 原逻辑）。"""
-    if not isinstance(result, dict) or result.get("error"):
-        return []
-    out = []
-    for r in result.get("results", []) or []:
-        out.append({
-            "doc": r.get("doc"),
-            "section": r.get("section"),
-            "chunk_id": r.get("chunk_id"),
-            "score": r.get("score"),
-        })
-    return out
-
-
 def _memory_from(runnable_config) -> object | None:
     """从 configurable 取 use_memory 开关；开了才碰 MemoryManager（测试不带记忆）。"""
     configurable = (runnable_config or {}).get("configurable") or {}
@@ -178,17 +172,31 @@ def agent(state: AgentState):
     调模型（v3.0 client.chat.completions.create）。
     turn_count 在此 +1（一次模型调用 = 一轮，替换语义：读当前值返回 +1）。
     LLM 调用失败 → 写 answer 短路通道，边上直接路由 finalize（v3.0 分支保留）。
+
+    空回答重试（第七周前重构项，06-05 复跑实证）：qwen3.7-plus 上 stop+空 content
+    约两成，特征是 API 侧 fast-fail（0.8-3.5s）。节点内重试一次、不画进图——
+    业务决策（纠正/降级）才进拓扑，传输层抖动留在节点里（同 try/except 先例）；
+    画成 agent→agent 条件边会污染拓扑、消耗 turn_count、多落 checkpoint。
+    重试不消耗 turn_count（一次有效模型交互 = 一轮）；仍空则照旧走占位符兜底。
     """
     turn = state.get("turn_count", 0) + 1
-    try:
-        response = call_model(_context_window(state["messages"]))
-    except Exception as e:  # noqa: BLE001 — 与 v3.0 行为一致：任何调用错误都降级为错误回答
-        logger.error(f"LLM call failed at turn {turn}: {e}")
-        return {"answer": f"[错误] 模型调用失败: {e}", "turn_count": turn}
+    retried = 0
+    while True:
+        try:
+            response = call_model(_context_window(state["messages"]))
+        except Exception as e:  # noqa: BLE001 — 与 v3.0 行为一致：任何调用错误都降级为错误回答
+            logger.error(f"LLM call failed at turn {turn}: {e}")
+            return {"answer": f"{PLACEHOLDER_ERROR} 模型调用失败: {e}", "turn_count": turn}
 
-    choice = response.choices[0]
-    msg = choice.message
-    finish = choice.finish_reason
+        choice = response.choices[0]
+        msg = choice.message
+        finish = choice.finish_reason
+        # 只对 "stop 且空 content" 重试；tool_calls 配空 content 是正常形态
+        if (finish == "stop" and not (msg.content or "").strip() and retried < 1):
+            retried += 1
+            logger.warning(f"Empty content at turn {turn} (API fast-fail?), retrying once.")
+            continue
+        break
     if finish not in ("stop", "tool_calls"):
         logger.warning(f"Unexpected finish_reason: {finish}")  # 罕见分支：按 stop 处理
 
@@ -202,22 +210,26 @@ def agent(state: AgentState):
             }
             for tc in msg.tool_calls
         ]
-    return {"messages": [ai_message], "turn_count": turn}
+    return {
+        "messages": [ai_message],
+        "turn_count": turn,
+        # 本问题内手动累加（替换语义字段，init 清零）——量化"重试救回了多少"
+        "empty_retries": state.get("empty_retries", 0) + retried,
+    }
 
 
 def tools(state: AgentState):
     """
-    执行工具（v3.0 execute_tool / tools.py）：
-      - 写工具结果消息
-      - 更新 has_*（含失败="尝试过"，防反复纠正）
-      - retrieved_chunks 手动"当前+新"累加（决策 B：替换语义，E3 实证）
-      - consecutive_failures：仅 fetch_webpage 失败累计（v3.0 注释保留：
-        VectorStoreNotReady 是配置问题，不该触发 fallback），成功清零
+    执行工具（v3.0 execute_tool / tools.py）。
+    v4.2 瘦身：每个工具的 state 副作用由 tools.TOOL_EFFECTS 声明，循环体全通用——
+    第七周加工具只登记注册表，本节点零改动。保真的三条 v3.0 语义（T10 锁）：
+      - sets_flag 成功失败都置（"尝试过"，防反复纠正）
+      - chunk_extractor 仅成功时抽、手动"当前+新"累加（决策 B，E3 实证）
+      - 失败计数不对称：仅 counts_failures 的工具失败累加，任何工具成功都清零
     """
     last = state["messages"][-1]  # 路由保证：带 tool_calls 的 AIMessage
     out_messages = []
-    has_searched = state.get("has_searched", False)
-    has_retrieved = state.get("has_retrieved", False)
+    flag_updates: dict = {}
     chunks = list(state.get("retrieved_chunks") or [])
     failures = state.get("consecutive_failures", 0)
 
@@ -225,16 +237,15 @@ def tools(state: AgentState):
         tool_name, tool_args = tc["name"], tc["args"] or {}
         result = execute_tool(tool_name, tool_args)
         is_error = isinstance(result, dict) and result.get("error", False)
+        effect = TOOL_EFFECTS.get(tool_name, ToolEffect())
 
-        if tool_name == "web_search":
-            has_searched = True
-        elif tool_name == "retrieve_documents":
-            has_retrieved = True
-            if not is_error:
-                chunks = chunks + _extract_retrieved_chunks(result)  # 手动累加
+        if effect.sets_flag:
+            flag_updates[effect.sets_flag] = True
+        if not is_error and effect.chunk_extractor:
+            chunks = chunks + effect.chunk_extractor(result)  # 手动累加
 
         if is_error:
-            if tool_name == "fetch_webpage":
+            if effect.counts_failures:
                 failures += 1
             logger.info(
                 f"Tool '{tool_name}' failed ({result.get('error_type')}). "
@@ -251,8 +262,7 @@ def tools(state: AgentState):
 
     return {
         "messages": out_messages,
-        "has_searched": has_searched,
-        "has_retrieved": has_retrieved,
+        **flag_updates,
         "retrieved_chunks": chunks,
         "consecutive_failures": failures,
     }
@@ -313,6 +323,9 @@ def _trace_shim(state: AgentState) -> SimpleNamespace:
         turns=[SimpleNamespace(tool_calls=calls)],
         searched=state.get("has_searched", False),
         retrieved=state.get("has_retrieved", False),
+        # v4.2 踩坑 #3 收紧：携带本轮真实检索来源，事实抽取据此校验引用。
+        # 恒为 list（零检索 = 空白名单 = 引用全拒收），不是 None。
+        retrieved_chunks=list(state.get("retrieved_chunks") or []),
     )
 
 
@@ -320,15 +333,19 @@ def update_memory(state: AgentState, config, *, store: BaseStore):
     """
     抽取主题/偏好/事实、写长期、eviction 触发摘要（v3.0 memory.update_from_turn）。
     store 由 LangGraph 注入——长期记忆三类（偏好/事实/主题）写入这里。
+
+    v4.2 时序反转后本节点在 human_review 之后运行：记录的是用户实际看到的
+    版本（含人工改写）。answer 此时必经 finalize 组装，占位符统一在此跳过——
+    旧图错误/超轮路径绕过 update_memory 的行为由这条跳过等价承接（S11 扩展版）。
     """
     memory = _memory_from(config)
     if memory is None:
         return {}
-    answer = state.get("answer") or _last_ai_content(state)
-    if not answer.strip():
-        # 模型偶发返回空 content（finalize 会补占位符）。空轮次没有可记的内容，
-        # 写进短期记忆反而会把一次模型抖动级联污染到后续问题的段 5。
-        logger.info("Skipping memory update: empty answer this turn.")
+    answer = state.get("answer", "")
+    if is_placeholder_answer(answer):
+        # 占位符轮次没有可记的内容；写进短期记忆会把一次模型抖动
+        # 级联污染到后续问题的段 5（S11）。
+        logger.info("Skipping memory update: placeholder answer this turn.")
         return {}
     memory.update_from_turn(state["user_message"], answer, _trace_shim(state), store)
     return {}
@@ -336,15 +353,17 @@ def update_memory(state: AgentState, config, *, store: BaseStore):
 
 def human_review(state: AgentState):
     """
-    finalize 前的输出审批（决策 F）。开关动态读 config.INTERRUPT_ENABLED：
+    输出审批（决策 F）。v4.2 起在 finalize 之后运行——审批框里永远是
+    组装完成的终稿（空回答已是占位符，人工可当场改写补救，06-05 quirk 2 修复）。
+    开关动态读 config.INTERRUPT_ENABLED：
       - 关 → 透明放行（默认；测试/批量评测可复现）
       - 开 → interrupt() 暂停；Command(resume=...) 的语义：
-          "approve"/"ok"/"yes"/"y"/"通过"/空串 → 保留草稿答案
-          其他非空字符串 → 改写最终答案（写 answer 短路通道，finalize 尊重它）
+          "approve"/"ok"/"yes"/"y"/"通过"/空串 → 保留终稿
+          其他非空字符串 → 改写最终答案（update_memory 记录改写后版本）
     """
     if not settings.INTERRUPT_ENABLED:
         return {}
-    draft = state.get("answer") or _last_ai_content(state)
+    draft = state.get("answer", "")  # finalize 已跑过，必有值
     decision = interrupt({"draft_answer": draft, "hint": "回复 approve 通过，或直接给出改写后的答案"})
     if isinstance(decision, str) and decision.strip() \
             and decision.strip().lower() not in {"approve", "ok", "yes", "y", "通过"}:
@@ -354,17 +373,18 @@ def human_review(state: AgentState):
 
 def finalize(state: AgentState):
     """
-    写 answer 收尾（v3.0 run_agent 返回值）。优先级：
-      1. answer 已被写入（LLM 错误短路 / human_review 改写）→ 尊重
+    组装终稿 answer（v3.0 run_agent 返回值；v4.2 起不再是图终点——
+    后接 human_review 审批与 update_memory）。优先级：
+      1. answer 已被写入（LLM 错误短路）→ 尊重
       2. 本问题窗口最后一条带内容的 assistant 消息
-      3. 都没有 → 达到最大轮次（闸门收口路径）或空回答
+      3. 都没有 → 达到最大轮次（闸门收口路径）或空回答占位符
     """
     answer = state.get("answer")
     if not answer:
         answer = _last_ai_content(state)
     if not answer:
         if state.get("turn_count", 0) >= MAX_TURNS:
-            answer = f"[达到最大轮次] Agent 在 {MAX_TURNS} 轮内未能完成任务。"
+            answer = f"{PLACEHOLDER_MAX_TURNS} Agent 在 {MAX_TURNS} 轮内未能完成任务。"
         else:
-            answer = "[模型返回空回答]"
+            answer = PLACEHOLDER_EMPTY
     return {"answer": answer}

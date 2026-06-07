@@ -36,6 +36,7 @@ class AgentState(TypedDict):
     fallback_injected: bool                # 降级最多一次
     consecutive_failures: int              # 工具连续失败计数（仅 fetch_webpage 累计），成功清零
     turn_count: int                        # 循环上限保护（agent 节点内 +1，边上闸门查它）
+    empty_retries: int                     # 空回答节点内重试累计（可观测；本问题内手动累加）
     assembly_report: Optional[dict]        # 六段装配报告（可观测）
     correction_triggered: bool             # trace 语义字段（v3.0 AgentTrace 吸收进 state）
     fallback_triggered: bool               # 同上
@@ -55,6 +56,7 @@ PER_QUERY_DEFAULTS: dict = {
     "fallback_injected": False,
     "consecutive_failures": 0,
     "turn_count": 0,
+    "empty_retries": 0,
     "assembly_report": None,
     "correction_triggered": False,
     "fallback_triggered": False,

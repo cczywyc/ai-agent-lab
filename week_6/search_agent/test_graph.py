@@ -10,6 +10,10 @@ v4.0 图结构测试 — 桩模型 + 桩工具，不调真实 API，离线可复
   T6 turn_count 闸门收口（E4 语义进真实图）
   T7 interrupt 开关：关→透明；开→暂停/通过/改写（决策 F）
   T8 同 thread 多问题：messages 持久化 + per-query 重置 + 装配窗口切片（决策 C / E2 语义）
+  T9 agent 空回答节点内重试一次（06-05 复跑：qwen3.7-plus fast-fail 约两成）
+  T10 tools 节点声明化：副作用由 TOOL_EFFECTS 注册表驱动（第七周加工具的扩展口）
+  T11 收尾时序反转：finalize → human_review → update_memory（审批框永不空，
+      人工可当场补救占位符回答——06-05 quirk 2 修复）
 
 跑法：../../.venv/bin/python test_graph.py
 """
@@ -30,6 +34,14 @@ from config import (
     FALLBACK_MESSAGE,
 )
 from graph import build_graph
+from memory.ltm_store import make_inmemory_store
+
+
+def build_test_graph():
+    """离线图：注入 stub embed 的 InMemoryStore（graph.py docstring 预留的测试口）。
+    不走 get_ltm_store() 默认 SqliteStore——离线测试不该碰真实 ltm.db，
+    也不依赖解释器的 sqlite 扩展支持。"""
+    return build_graph(store=make_inmemory_store(embed_fn=lambda ts: [[0.0] * 3 for _ in ts], dims=3))
 
 
 # ============================================================
@@ -111,7 +123,7 @@ def t1():
     print("\n[T1] 直答路径（创意问题，无纠正、无工具）")
     model = ScriptedModel([resp_stop("春眠不觉晓")])
     nodes.call_model = model
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, "写一首关于春天的五言绝句", "t1")
 
     check("answer = 模型 stop 内容", final["answer"] == "春眠不觉晓")
@@ -140,7 +152,7 @@ def t2():
             {"doc": "Agent_Loop_设计笔记", "section": "连续失败", "chunk_id": 7, "score": 0.88},
         ]},
     })
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, q, "t2")
 
     check("检索纠正已注入", final["retrieval_correction_injected"])
@@ -171,7 +183,7 @@ def t3():
     nodes.execute_tool = make_execute_tool({
         "web_search": {"results": [{"title": "Nobel 2024", "url": "https://nobelprize.org"}]},
     })
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, q, "t3")
 
     check("联网纠正已注入", final["search_correction_injected"])
@@ -194,7 +206,7 @@ def t4():
         resp_stop("第二次仍直答（应被接受）"),
     ])
     nodes.call_model = model
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, q, "t4")
 
     check("检索纠正恰好注入一次", final["retrieval_correction_injected"])
@@ -219,7 +231,7 @@ def t5():
     nodes.execute_tool = make_execute_tool({
         "fetch_webpage": {"error": True, "error_type": "HTTPError", "message": "403"},
     })
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, q, "t5")
 
     check("降级已注入", final["fallback_injected"] and final["fallback_triggered"])
@@ -241,7 +253,7 @@ def t6():
     ])
     nodes.call_model = model
     nodes.execute_tool = make_execute_tool({"web_search": {"results": []}})
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, q, "t6")  # 不该抛 GraphRecursionError
 
     check(f"恰好调用模型 {MAX_TURNS} 次后收口", final["turn_count"] == MAX_TURNS and not model.steps)
@@ -259,7 +271,7 @@ def t7():
     # --- 关：完全透明 ---
     config.INTERRUPT_ENABLED = False
     nodes.call_model = ScriptedModel([resp_stop("秋风起兮白云飞")])
-    g = build_graph()
+    g = build_test_graph()
     final, _ = run(g, q, "t7-off")
     check("OFF：无 __interrupt__", "__interrupt__" not in final)
     check("OFF：直达 answer", final["answer"] == "秋风起兮白云飞")
@@ -267,7 +279,7 @@ def t7():
     # --- 开：暂停，approve 放行 ---
     config.INTERRUPT_ENABLED = True
     nodes.call_model = ScriptedModel([resp_stop("秋风起兮白云飞")])
-    g = build_graph()
+    g = build_test_graph()
     mid, cfg = run(g, q, "t7-on")
     paused_at = g.get_state(cfg).next
     check("ON：出现 __interrupt__", "__interrupt__" in mid)
@@ -277,7 +289,7 @@ def t7():
 
     # --- 开：resume 改写答案 ---
     nodes.call_model = ScriptedModel([resp_stop("草稿答案")])
-    g2 = build_graph()
+    g2 = build_test_graph()
     mid, cfg2 = run(g2, q, "t7-rewrite")
     final = g2.invoke(Command(resume="人工改写后的答案"), cfg2)
     check("ON：resume 文本改写最终答案", final["answer"] == "人工改写后的答案")
@@ -293,7 +305,7 @@ def t8():
     print("\n[T8] 同 thread 两问题：messages 持久化、per-query 重置、窗口切片")
     model = ScriptedModel([resp_stop("答案一"), resp_stop("答案二")])
     nodes.call_model = model
-    g = build_graph()
+    g = build_test_graph()
     run(g, "写一首关于冬天的诗", "t8")
     final, cfg = run(g, "再写一首关于夏天的诗", "t8")
 
@@ -306,12 +318,142 @@ def t8():
 
 
 # ============================================================
+# T9 agent 空回答重试
+# ============================================================
+
+def t9():
+    print("\n[T9] agent 空回答重试（stop+空 content 节点内重试一次，不画进图）")
+    q = "写一首关于春天的五言绝句"
+
+    # --- 第一次空、重试拿到正文 ---
+    model = ScriptedModel([resp_stop(""), resp_stop("重试拿到的答案")])
+    nodes.call_model = model
+    g = build_test_graph()
+    final, _ = run(g, q, "t9-retry")
+    check("重试后 answer 为正文", final["answer"] == "重试拿到的答案")
+    check("重试不消耗 turn_count（仍 1 轮）", final["turn_count"] == 1)
+    check("empty_retries 记 1（可观测）", final.get("empty_retries") == 1)
+    check("模型恰好被调 2 次", len(model.calls) == 2)
+
+    # --- 恒空：只重试一次，照旧走占位符兜底（脚本仅 2 步，多调会耗尽报错） ---
+    model = ScriptedModel([resp_stop(""), resp_stop("")])
+    nodes.call_model = model
+    g = build_test_graph()
+    final, _ = run(g, q, "t9-still-empty")
+    check("仍空 → 占位符兜底不变", final["answer"] == "[模型返回空回答]")
+    check("恰好只重试一次（共 2 次调用）", len(model.calls) == 2)
+
+    # --- tool_calls 配空 content 是正常形态，不触发重试 ---
+    model = ScriptedModel([
+        resp_tools(("web_search", {"query": "spring poem"})),
+        resp_stop("基于搜索的答案"),
+    ])
+    nodes.call_model = model
+    nodes.execute_tool = make_execute_tool({"web_search": {"results": []}})
+    g = build_test_graph()
+    final, _ = run(g, "搜索一下春天的诗", "t9-tools")
+    check("tool_calls 空 content 不重试",
+          final["answer"] == "基于搜索的答案" and final.get("empty_retries") == 0)
+
+
+# ============================================================
+# T10 tools 节点声明化（ToolEffect 注册表）
+# ============================================================
+
+def t10():
+    print("\n[T10] tools 节点声明化：副作用由 TOOL_EFFECTS 注册表驱动")
+    from tools import TOOL_EFFECTS, ToolEffect
+
+    # --- 注册一个新工具（模拟第七周加工具）：声明置标志 + 抽 chunks，节点体零改动 ---
+    dummy_chunk = {"doc": "dummy", "section": "s", "chunk_id": 0, "score": 1.0}
+    TOOL_EFFECTS["dummy_probe"] = ToolEffect(
+        sets_flag="has_searched",
+        chunk_extractor=lambda result: [dummy_chunk],
+    )
+    try:
+        model = ScriptedModel([
+            resp_tools(("dummy_probe", {"x": 1})),
+            resp_stop("dummy 工具驱动的答案"),
+        ])
+        nodes.call_model = model
+        nodes.execute_tool = make_execute_tool({"dummy_probe": {"ok": True}})
+        g = build_test_graph()
+        final, _ = run(g, "写一首关于大海的诗", "t10-reg")
+        check("注册表声明的标志被置位", final["has_searched"])
+        check("注册表声明的 chunk_extractor 生效", final["retrieved_chunks"] == [dummy_chunk])
+        check("答案照常产出", final["answer"] == "dummy 工具驱动的答案")
+    finally:
+        del TOOL_EFFECTS["dummy_probe"]
+
+    # --- 未注册工具：流程照走、不碰任何标志 ---
+    model = ScriptedModel([
+        resp_tools(("unknown_tool", {})),
+        resp_stop("unknown 工具后的答案"),
+    ])
+    nodes.call_model = model
+    nodes.execute_tool = make_execute_tool({"unknown_tool": {"ok": True}})
+    g = build_test_graph()
+    final, _ = run(g, "写一首关于沙漠的诗", "t10-unknown")
+    check("未注册工具不碰标志", not final["has_searched"] and not final["has_retrieved"])
+    check("未注册工具流程照走", final["answer"] == "unknown 工具后的答案")
+
+    # --- 语义保真锁（重构安全网，原行为就该如此） ---
+    # 1) 失败也算"尝试过"（防反复纠正）；2) 非 fetch 工具失败不计 consecutive_failures
+    model = ScriptedModel([
+        resp_tools(("web_search", {"query": "x"})),
+        resp_stop("搜索失败后的直答"),
+    ])
+    nodes.call_model = model
+    nodes.execute_tool = make_execute_tool({
+        "web_search": {"error": True, "error_type": "SearchError", "message": "boom"},
+    })
+    g = build_test_graph()
+    final, _ = run(g, "2026年图灵奖给了谁？", "t10-failed-try")
+    check("工具失败也算尝试过（has_searched=True）", final["has_searched"])
+    check("非 fetch 工具失败不计连续失败", final["consecutive_failures"] == 0)
+    check("失败的尝试不再触发纠正", not final["search_correction_injected"])
+
+
+# ============================================================
+# T11 收尾时序反转
+# ============================================================
+
+def t11():
+    print("\n[T11] 时序反转：审批在 finalize 之后（审批框永不空）")
+    q = "写一首关于冬夜的诗"
+
+    config.INTERRUPT_ENABLED = True
+    try:
+        # --- 空回答：审批框收到占位符而非空串（finalize 已先跑） ---
+        model = ScriptedModel([resp_stop(""), resp_stop("")])  # 节点内重试后仍空
+        nodes.call_model = model
+        g = build_test_graph()
+        mid, cfg = run(g, q, "t11-empty-draft")
+        check("审批框收到占位符而非空串",
+              "__interrupt__" in mid
+              and mid["__interrupt__"][0].value.get("draft_answer") == "[模型返回空回答]")
+        final = g.invoke(Command(resume="人工补救的答案"), cfg)
+        check("人工当场补救空回答", final["answer"] == "人工补救的答案")
+
+        # --- 正常回答：approve 保留 finalize 组装的终稿 ---
+        model = ScriptedModel([resp_stop("冬夜诗一首")])
+        nodes.call_model = model
+        g = build_test_graph()
+        mid, cfg = run(g, q, "t11-approve")
+        check("审批框收到的就是终稿", mid["__interrupt__"][0].value.get("draft_answer") == "冬夜诗一首")
+        final = g.invoke(Command(resume="approve"), cfg)
+        check("approve 后终稿不变", final["answer"] == "冬夜诗一首")
+    finally:
+        config.INTERRUPT_ENABLED = False
+
+
+# ============================================================
 # 入口
 # ============================================================
 
 def main():
     print("=== v4.0 图结构测试（桩模型，离线） ===")
-    for t in (t1, t2, t3, t4, t5, t6, t7, t8):
+    for t in (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11):
         t()
 
     passed = sum(1 for _, ok in CHECKS if ok)

@@ -103,8 +103,16 @@ class MemoryManager:
         if pref:
             long_term.set_preference(store, pref["key"], pref["value"])
 
-        # 3. 已确认事实（仅当回答带 [doc#section] 引用；不再手动 embed）
-        self._extract_and_store_facts(assistant_message, turn_no, store)
+        # 3. 已确认事实（仅当回答带 [doc#section] 引用；不再手动 embed）。
+        #    v4.2 踩坑 #3 收紧：引用还须对上本轮真实检索来源（trace 携带
+        #    retrieved_chunks）。不带该字段的旧调用方 → None = 不校验，向后兼容。
+        chunks = getattr(trace, "retrieved_chunks", None)
+        allowed_sources = (
+            {(str(c.get("doc", "")).strip(), str(c.get("section", "")).strip())
+             for c in chunks}
+            if chunks is not None else None
+        )
+        self._extract_and_store_facts(assistant_message, turn_no, store, allowed_sources)
 
         # 4. 加入短期记忆
         tool_summaries = self._summarize_tools(trace)
@@ -129,8 +137,9 @@ class MemoryManager:
     # ============================================================
     def _extract_and_store_facts(
         self, answer: str, turn_no: int, store: BaseStore,
+        allowed_sources: Optional[set] = None,
     ) -> None:
-        candidates = extract_fact_candidates(answer)
+        candidates = extract_fact_candidates(answer, allowed_sources=allowed_sources)
         if not candidates:
             return
 
