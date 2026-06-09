@@ -1,0 +1,9 @@
+{
+  "agent_loop": 4,
+  "tool_calling": 3,
+  "fallback": 3,
+  "rag": 3,
+  "chunking": 2,
+  "memory": 1,
+  "citation": 1
+}
