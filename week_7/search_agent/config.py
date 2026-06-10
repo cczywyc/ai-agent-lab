@@ -29,7 +29,7 @@ client = OpenAI(
 )
 
 # 主对话模型
-MODEL = "qwen3.7-plus"
+MODEL = "qwen3.7-plus-2026-05-26"
 
 # Embedding 模型（DashScope 通过 OpenAI 兼容接口提供）
 EMBEDDING_MODEL = "text-embedding-v3"
