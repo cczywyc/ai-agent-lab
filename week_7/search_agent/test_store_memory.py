@@ -559,9 +559,10 @@ def test_s14_fact_contract_e2e():
             )]),
             finish_reason="tool_calls",
         )])
-        # 第一稿混入编造引用 → v5.0 critic 引用硬闸门判 retry（早于 extractor 白名单）
+        # 第一稿多数引用编造（1 真 2 假，接地 0.33 < 0.5）→ critic 接地软闸门判 retry
         dirty = ("- 降级在连续失败 2 次后触发 [设计笔记#降级机制]。\n"
-                 "- 这条来源是模型编造的 [幻觉文档#不存在的节]。")
+                 "- 这条来源是模型编造的 [幻觉文档#不存在的节]。\n"
+                 "- 这条也是编造的 [幻觉文档二#假节]。")
         dirty_stop = SimpleNamespace(choices=[SimpleNamespace(
             message=SimpleNamespace(content=dirty, tool_calls=None), finish_reason="stop")])
         # 重做稿只引真实来源 → critic accept → 进 store

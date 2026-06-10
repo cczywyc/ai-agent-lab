@@ -28,7 +28,7 @@ START → init → planner ─┬─(done / step≥MAX_STEPS / replan≥MAX_REPL
               ┌── retry ─► retry_reset ─► assemble ──────────────────────────────┘
           critic ─┬─ accept ───────────────► planner（判 done / 推进 step_index）
                   ├─ retry(<MAX_RETRY) ────► retry_reset → assemble（轻量重置后重做该步）
-                  └─ escalate / retry 用尽 ► planner（escalate：re-plan / 跳过）
+                  └─ escalate / retry 用尽 ► planner（skip-and-advance：标记该步 skipped、推进）
    收口：finalize（组装报告）→ human_review（审批）→ update_memory → END
 ```
 
@@ -49,11 +49,15 @@ executor 引擎（`agent ↔ tools ↔ inject_*`，内层 `turn_count` 闸门）
    `retry_count`（业务层，critic 驱动、per-subtask）/ `replan_count`（计划层，per-task）——别合成一个。
 4. **双闸门非冗余（E4）**：`step_index<MAX_STEPS`（前进步数）+ `replan_count<MAX_REPLAN`（原地绕圈）；
    escalate 恒压下 `replan_count` 闸门先收口。框架 `recursion_limit` 只兜底（E6：默认 10007 远超有界任务）。
-5. **critic 比 executor 更严（职责边界 §8）**：硬闸门（空/占位 → retry；引用对不上本步召回 → retry；
-   跑满 turn 仍无答案 → escalate）先于 LLM 裁决；引用契约前移到单步输出侧。
-6. **`step_results` 不上 reducer（E3）**：节点内手动累加（按 step_id de-dup，retry 重做覆盖旧条），init 才能用 `[]` 清空。
-7. **记忆 read-side 保留**：`assemble(executor)` 记忆开启时复用 v3.0 六段装配（偏好/摘要/长期事实召回进每子任务窗口）；
-   write-side `update_memory` 记录整份报告（占位符报告跳过）。re-plan 作废的结论靠 `plan_version` 打标（§8 承接）。
+5. **critic 比 executor 更严，但引用闸门用"接地比例"软闸门（职责边界 §8 + v0.5 真实跑修正）**：硬闸门——空/占位 → retry、
+   跑满 turn 仍无答案 → escalate；**引用**——`_citation_grounding`（能溯源到本步召回的引用占比）< `CITATION_MIN_GROUNDING`(0.5) 才 retry。
+   不再要求"全部引用精确命中"（真实跑暴露：模型写富报告引 20–37 条含子节/相关节，全命中是奢望、过严会把合法步全误杀成 retry 级联）。
+   section 匹配也容忍缩写/后缀/叶子。store 持久化侧仍由 `extract_fact_candidates(allowed_sources)` 严格白名单兜底（S13/S14）。
+6. **escalate = skip-and-advance（v0.5 真实跑修正）**：critic escalate / retry 用尽 → planner 标记该步 skipped、推进 step_index；
+   `replan_count` 计跳过数、达 `MAX_REPLAN` 放弃剩余。旧"re-plan 重做同一步"会因同一失败原因反复触发、烧光预算让后续步没机会跑。
+7. **`step_results` 不上 reducer（E3）**：节点内手动累加（按 step_id de-dup，retry 重做覆盖旧条），init 才能用 `[]` 清空。
+8. **记忆 read-side 保留**：`assemble(executor)` 记忆开启时复用 v3.0 六段装配（偏好/摘要/长期事实召回进每子任务窗口）；
+   write-side `update_memory` 记录整份报告（占位符报告跳过）。子任务结论写 store 靠 `plan_version` 打标（§8 承接）。
 
 ## 文件结构
 
@@ -67,8 +71,8 @@ search_agent/
 │                #   内层：route_after_agent / need_correction / after_tools / gate_to_agent（出口改接 critic）
 ├── graph.py     # 状态图组装（planner-executor-critic 接线；step_init/retry_reset 都喂 assemble）+ compile
 ├── main.py      # CLI：交互调研 / --query / --test（批量调研）/ --ingest / 记忆模式
-├── config.py    # +MAX_STEPS/MAX_REPLAN/MAX_RETRY + PLANNER_PROMPT/CRITIC_PROMPT；ingest 含 week_7 docs
-├── test_graph.py        # v5.0 外循环离线测试（W1–W11，49 项；E1–E7 进真实图复跑 + W11 验 retry_reset）
+├── config.py    # +MAX_STEPS/MAX_REPLAN/MAX_RETRY/CITATION_MIN_GROUNDING + PLANNER_PROMPT/CRITIC_PROMPT；ingest 含 week_7 docs
+├── test_graph.py        # v5.0 外循环离线测试（W1–W12，60 项；E1–E7 进真实图 + W11 retry_reset + W12 引用闸门）
 ├── test_criteria.py     # 占位符/判据纯函数（23 项）
 ├── test_store_memory.py # Store×记忆 e2e（56 项；S9/S11/S12/S14 已适配 v5.0 外循环）
 ├── tools.py / checks.py / rag/ / memory/   # v4.2 原样复用（加调研工具只登记 TOOL_EFFECTS）
@@ -91,9 +95,12 @@ search_agent/
 
 ## 验证状态
 
-- **离线桩测全绿**：`test_graph.py` 49/49（W1–W11：happy path / 三路 critic / 两层重置 /
+- **离线桩测全绿**：`test_graph.py` 60/60（W1–W12：happy path / 三路 critic / 两层重置 /
   step_results 累加 / 双闸门 / 两档计数器 / 跨子任务重锚 / executor 引擎保真 / turn 闸门到 critic / 收尾链尾 /
-  **W11 retry 轻量重置**）；`test_criteria.py` 23/23；`test_store_memory.py` 56/56。
+  W11 retry 轻量重置 / **W12 引用接地软闸门**）；`test_criteria.py` 23/23；`test_store_memory.py` 56/56。
 - **机制探针**：`week_7/experiment/` E1–E7，20/20（LangGraph 1.2.4）。
-- **真实 API 实测**（`--test` / `--query`）：周四实现期实跑项，需 `DASHSCOPE_API_KEY`；token 预算压缩
-  （plan 长时摘要裁剪）也留作真实 API 下的实测项（设计草稿 §四）。
+- **真实 API 端到端实跑**（qwen3.7-plus，5 子任务调研问题，2026-06-09）：planner 拆解合理；critic LLM 正常裁决
+  （3 步 accept、引用 12–25 条经接地软闸门放行）；**3/5 步完成**（剩 2 步因 DashScope 免费额度耗尽 403 →
+  skip-and-advance 优雅收口出 3 段可读报告，坐实兜底）。**§四 token 预算实测**：摘要段峰值 ~1307 字符（受
+  `MAX_STEPS`×每步 400 上限约束、有界，**无需压缩**）；真正窗口压力是子任务内检索 chunk 累加（峰值 ~12.7K tokens）——
+  后续可给内层累加 tool 结果设上限/降 `RETRIEVE_TOP_K`。完整额度跑通待非免费额度复跑。

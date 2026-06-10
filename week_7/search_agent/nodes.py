@@ -48,11 +48,11 @@ from config import (
     MAX_TURNS,
     MAX_STEPS,
     MAX_REPLAN,
+    CITATION_MIN_GROUNDING,
     CORRECTION_MESSAGE,
     FALLBACK_MESSAGE,
     RETRIEVAL_CORRECTION_MESSAGE,
     PLANNER_PROMPT,
-    PLANNER_REPLAN_PROMPT,
     CRITIC_PROMPT,
     RETRY_FEEDBACK_PREFIX,
     PLACEHOLDER_MAX_TURNS,
@@ -204,15 +204,43 @@ def _extract_citations(text: str) -> list[str]:
     return out
 
 
+def _citation_legal_one(doc: str, section: str, chunks: list) -> bool:
+    """单条引用是否落在本步真实召回里。**doc 必须命中**某个召回 chunk（防编造来源）；
+    section 容忍缩写——真实库的 section 是很长的层级路径（`A > 二、… > 认知 2：…`），模型
+    常只引叶子/后缀。匹配放宽到：精确 / full 以 cited 结尾（后缀）/ cited==叶子 / cited 是叶子子串。
+    （真实跑暴露：旧版精确匹配把合法但缩写的引用误杀成 retry、级联拖垮整条研究。）"""
+    doc = doc.strip()
+    section = section.strip()
+    for c in (chunks or []):
+        if str(c.get("doc", "")).strip() != doc:
+            continue
+        full = str(c.get("section", "")).strip()
+        if not section:
+            return True                       # [doc] 无 section 但 doc 已召回 → 放行
+        leaf = full.split(">")[-1].strip()
+        if section == full or full.endswith(section) or section == leaf or section in leaf:
+            return True
+    return False
+
+
 def _citations_legal(citations: list[str], chunks: list) -> bool:
-    """引用合法 = 每条引用的 (doc, section) 都在本步真实召回白名单里（踩坑 #3 前移到单步侧）。
-    零检索（白名单空）而出现引用 → 全拒收。"""
-    allowed = {(str(c.get("doc")), str(c.get("section"))) for c in (chunks or [])}
-    for cit in citations:
-        doc, _, section = cit.partition("#")
-        if (doc.strip(), section.strip()) not in allowed:
-            return False
-    return True
+    """每条引用都能溯源到本步召回（严口径，供单测/store 侧白名单语义对照）。"""
+    return all(
+        _citation_legal_one(cit.partition("#")[0], cit.partition("#")[2], chunks)
+        for cit in citations
+    )
+
+
+def _citation_grounding(citations: list[str], chunks: list) -> float:
+    """引用"接地比例" = 能溯源到本步召回的引用占比（无引用记 1.0，不在此闸门管）。
+    critic 用它做软闸门（≥ CITATION_MIN_GROUNDING 放行进 LLM 裁决）——比"全部命中"的硬闸门
+    宽容：模型写富报告会引很多子节/相关节，全命中是奢望，但"多数对得上"即算接地。
+    零检索而满篇引用 → 0.0（必 retry）；纯编造 → 低比例 → retry。"""
+    if not citations:
+        return 1.0
+    legal = sum(1 for cit in citations
+                if _citation_legal_one(cit.partition("#")[0], cit.partition("#")[2], chunks))
+    return legal / len(citations)
 
 
 def _step_summaries(state: AgentState, max_chars: int = 400) -> str:
@@ -283,25 +311,18 @@ def retry_reset(state: AgentState):
 # 节点 · planner（拆解 / 推进 / re-plan，职责边界 §2）
 # ============================================================
 
-def _planner_messages(state: AgentState, kind: str) -> list[dict]:
+def _planner_messages(state: AgentState) -> list[dict]:
+    """planner 拆解的输入（decompose）。v0.5 起 escalate 改 skip-and-advance、不再 LLM re-plan，
+    所以 planner 只在入口调一次模型拆解。"""
     question = state.get("user_message", "")
-    if kind == "decompose":
-        return [
-            {"role": "system", "content": PLANNER_PROMPT.format(max_steps=MAX_STEPS)},
-            {"role": "user", "content": f"调研问题：{question}\n\n请拆解成有序子任务（JSON 字符串数组）。"},
-        ]
-    summaries = _step_summaries(state) or "（暂无）"
-    cur = _current_subtask(state).get("query", "")
     return [
-        {"role": "system", "content": PLANNER_REPLAN_PROMPT.format(max_steps=MAX_STEPS)},
-        {"role": "user", "content": (
-            f"原问题：{question}\n\n已完成步结论摘要：\n{summaries}\n\n"
-            f"被打回的当前子任务：{cur}\n\n请重新规划从当前步起的剩余子任务（JSON 数组）。")},
+        {"role": "system", "content": PLANNER_PROMPT.format(max_steps=MAX_STEPS)},
+        {"role": "user", "content": f"调研问题：{question}\n\n请拆解成有序子任务（JSON 字符串数组）。"},
     ]
 
 
 def _planner_decompose(state: AgentState):
-    raw = call_planner_model(_planner_messages(state, "decompose"))
+    raw = call_planner_model(_planner_messages(state))
     queries = _parse_plan(raw) or [state.get("user_message", "")]
     queries = queries[:MAX_STEPS]
     plan = [{"id": i, "query": q, "status": "pending"} for i, q in enumerate(queries)]
@@ -325,48 +346,41 @@ def _planner_advance(state: AgentState):
     return {"plan": plan, "step_index": next_k, "done": done, "termination_reason": reason}
 
 
-def _planner_replan(state: AgentState):
-    """critic escalate / retry 用尽：受限 re-plan（replan_count / plan_version +1，整表替换剩余）。
-    达 MAX_REPLAN 即收口（决策 D / E4：replan_count 闸门先收口）。"""
+def _planner_escalate(state: AgentState):
+    """critic escalate / retry 用尽：**skip-and-advance**（v0.5）——标记当前步 skipped、推进 step_index。
+    不再 re-do 同一步（旧 re-plan 保留 step_index 重做，会因同一失败原因反复触发、烧光预算让
+    后续步没机会跑——真实跑实测：一步引用误杀就拖垮整条研究）。replan_count 计累计跳过/升级数；
+    达 MAX_REPLAN 提前收口（太多步失败 → 放弃剩余）。job 边界 §4 的 escalate 三选项里取"跳过"。"""
     replan = state.get("replan_count", 0) + 1
-    pv = state.get("plan_version", 0) + 1
     k = state.get("step_index", 0)
     plan = [dict(s) for s in state.get("plan", [])]
+    if 0 <= k < len(plan):
+        plan[k]["status"] = "skipped"
+    next_k = k + 1
+    done, reason = False, ""
     if replan >= MAX_REPLAN:
-        if 0 <= k < len(plan):
-            plan[k]["status"] = "skipped"
-        logger.info(f"Replan budget reached ({replan}); terminating with current findings.")
-        return {"plan": plan, "replan_count": replan, "plan_version": pv,
-                "done": True, "termination_reason": "max_replan"}
-    raw = call_planner_model(_planner_messages(state, "replan"))
-    new_queries = _parse_plan(raw)
-    if not new_queries:  # 兜底：跳过当前、推进（避免卡死）
-        if 0 <= k < len(plan):
-            plan[k]["status"] = "skipped"
-        next_k = k + 1
-        done = next_k >= len(plan)
-        return {"plan": plan, "step_index": next_k, "replan_count": replan, "plan_version": pv,
-                "done": done, "termination_reason": "all_steps_done" if done else ""}
-    completed = plan[:k]
-    new_sub = [{"id": k + i, "query": q, "status": "pending"} for i, q in enumerate(new_queries)]
-    new_plan = (completed + new_sub)[:MAX_STEPS]
-    logger.info(f"Re-planned remaining into {len(new_sub)} subtasks (replan={replan}).")
-    return {"plan": new_plan, "step_index": k, "replan_count": replan, "plan_version": pv,
-            "done": False, "termination_reason": ""}
+        done, reason = True, "max_replan"          # 太多步失败，放弃剩余
+    elif next_k >= len(plan):
+        done, reason = True, "all_steps_done"
+    elif next_k >= MAX_STEPS:
+        done, reason = True, "max_steps"
+    logger.info(f"Planner escalate: skip step {k} → advance to {next_k} (skip count={replan}).")
+    return {"plan": plan, "step_index": next_k, "replan_count": replan,
+            "done": done, "termination_reason": reason}
 
 
 def planner(state: AgentState):
     """
     三态（设计 §2.1）：plan 为空 → 拆解；critic accept → 推进判 done；其余（escalate /
-    retry 用尽）→ re-plan。planner 不碰检索/工具——只读问题 + plan + 各步结论摘要。
-    判 done 的依据写明（v0.3 §2.1）：advance 时若所有步走完 / 撞 MAX_STEPS 则置 done=True，
-    实际终止交条件边 route_after_planner（节点干活、边做决策）。
+    retry 用尽）→ skip-and-advance（v0.5）。planner 不碰检索/工具——只读问题 + plan + 各步结论摘要。
+    判 done 的依据写明（v0.3 §2.1）：advance/escalate 时若所有步走完 / 撞 MAX_STEPS / 跳过数撞
+    MAX_REPLAN 则置 done=True，实际终止交条件边 route_after_planner（节点干活、边做决策）。
     """
     if not state.get("plan"):
         return _planner_decompose(state)
     if state.get("critic_verdict", "") == "accept":
         return _planner_advance(state)
-    return _planner_replan(state)
+    return _planner_escalate(state)
 
 
 # ============================================================
@@ -549,14 +563,18 @@ def critic(state: AgentState):
     retry_count = state.get("retry_count", 0)
 
     feedback = ""
+    grounding = _citation_grounding(citations, chunks)
     if is_placeholder_answer(text):
         if state.get("turn_count", 0) >= MAX_TURNS:
-            verdict = "escalate"  # 跑满 turn 仍无答案：重做无益，交 planner re-plan/跳过
+            verdict = "escalate"  # 跑满 turn 仍无答案：重做无益，交 planner 跳过
         else:
             verdict, feedback = "retry", "上一步产出为空/占位符，请重新检索并给出有依据的结论。"
-    elif citations and not _citations_legal(citations, chunks):
+    elif citations and grounding < CITATION_MIN_GROUNDING:
+        # 软闸门：多数引用溯源不到本步召回 → 多半是凭记忆编的，重做（而非"一条不符就毙"）
+        logger.info(f"Critic step {step_id}: grounding={grounding:.2f} < {CITATION_MIN_GROUNDING} "
+                    f"({len(citations)} cites) → retry")
         verdict = "retry"
-        feedback = "引用对不上本步真实召回来源，请只引用 retrieve_documents 返回的 [doc#section]。"
+        feedback = "多数引用对不上本步召回来源，请基于 retrieve_documents 的返回重写、只引检索到的 [doc#section]。"
     else:
         raw = call_critic_model(_critic_messages(state, query, text))
         verdict = _parse_verdict(raw)

@@ -228,16 +228,17 @@ def w2():
     check("retry：executor 重做该步后产出新结论", "重做后的结论" in final["answer"])
     check("retry：retry_count 记到 1（业务层）", final["retry_count"] == 1)
 
-    # --- escalate：critic escalate → planner re-plan（plan_version +1） ---
+    # --- escalate：critic escalate s0 → skip-and-advance → s1 照常 accept ---
     set_stubs(
-        planner=ScriptedPlanner([plan_json("原始子任务"), plan_json("re-plan 后的子任务")]),
-        executor=ScriptedModel([resp_stop("方向不对的结论"), resp_stop("re-plan 后的结论")]),
+        planner=ScriptedPlanner([plan_json("会被跳过的子任务", "正常子任务")]),
+        executor=ScriptedModel([resp_stop("方向不对的结论"), resp_stop("正常子任务结论")]),
         critic=ScriptedCritic(["escalate", "accept"]),
     )
     final, _ = run(build_test_graph(), "q-escalate", "w2-escalate")
-    check("escalate：触发 re-plan，replan_count=1", final["replan_count"] == 1)
-    check("escalate：plan_version 升到 2", final["plan_version"] == 2)
-    check("escalate：最终拿到 re-plan 后的结论", "re-plan 后的结论" in final["answer"])
+    check("escalate：当前步标记 skipped", final["plan"][0]["status"] == "skipped")
+    check("escalate：skip-and-advance，replan_count=1", final["replan_count"] == 1)
+    check("escalate：后续子任务照常执行并 accept", final["plan"][1]["status"] == "done")
+    check("escalate：报告含后续子任务结论（不卡死在失败步）", "正常子任务结论" in final["answer"])
 
 
 # ============================================================
@@ -296,15 +297,17 @@ def w4():
 # ============================================================
 
 def w5():
-    print(f"\n[W5] 双闸门：critic 恒 escalate → 停在 replan_count={MAX_REPLAN}，不撞 recursion_limit")
+    print(f"\n[W5] 双闸门：critic 恒 escalate → skip-and-advance 烧到 replan_count={MAX_REPLAN} 提前收口，不撞 recursion_limit")
+    # 需 ≥ MAX_REPLAN+1 个子任务：每步 escalate→skip(replan+1)，达 MAX_REPLAN 即放弃剩余
     set_stubs(
-        planner=ScriptedPlanner([plan_json("永远过不了的子任务")]),
+        planner=ScriptedPlanner([plan_json("过不了的子任务1", "过不了的子任务2", "过不了的子任务3")]),
         executor=ScriptedModel([resp_stop("总是被否的结论")] * 50),
         critic=ScriptedCritic(["escalate"]),
     )
     final, _ = run(build_test_graph(), "q-loop", "w5")  # 不该抛 GraphRecursionError
     check(f"replan_count 闸门收口（达 {MAX_REPLAN}）", final["replan_count"] >= MAX_REPLAN)
-    check("终止原因为 max_replan", final["termination_reason"] == "max_replan")
+    check("终止原因为 max_replan（太多步失败 → 放弃剩余）", final["termination_reason"] == "max_replan")
+    check("剩余步未跑（第 3 步仍 pending）", final["plan"][2]["status"] == "pending")
     check("仍产出报告（优雅收口，非抛异常）", isinstance(final.get("answer"), str) and bool(final["answer"]))
 
 
@@ -409,9 +412,9 @@ def w9():
     final, _ = run(build_test_graph(), "q-turngate", "w9")  # 不该抛 GraphRecursionError
     check(f"每次执行恰好 {MAX_TURNS} 轮后收口（内层闸门）", final["turn_count"] == MAX_TURNS)
     check("收口后交 critic 审（step_results 留有该步裁决）", len(final["step_results"]) >= 1)
-    check("外循环兜底优雅收口（max_replan），未撞 recursion_limit",
-          final["termination_reason"] == "max_replan")
-    check("仍产出报告", isinstance(final.get("answer"), str) and bool(final["answer"]))
+    check("turn 跑满无答案 → critic escalate → skip-and-advance 优雅收口（单步走完）",
+          final["termination_reason"] == "all_steps_done")
+    check("仍产出报告，未撞 recursion_limit", isinstance(final.get("answer"), str) and bool(final["answer"]))
 
 
 # ============================================================
@@ -465,12 +468,44 @@ def w11():
 
 
 # ============================================================
+# W12 引用闸门：容忍 section 缩写，仍拒非检索来源（真实跑暴露的误杀修复）
+# ============================================================
+
+def w12():
+    print("\n[W12] 引用闸门：容忍 section 缩写 + 接地比例软闸门（修真实跑暴露的误杀级联）")
+    from nodes import _citations_legal, _citation_grounding
+    from config import CITATION_MIN_GROUNDING
+    # 本地 chunk 的 section 是很长的层级路径（真实库就是这样）
+    full = "第二周学习复盘：工具调用与单 Agent 雏形 > 二、关键认知变化 > 认知 2：模型不执行工具，只决定调用什么"
+    chunks = [{"doc": "第二周学习复盘", "section": full, "chunk_id": 1},
+              {"doc": "Agent_Loop_设计笔记", "section": "Agent_Loop_设计笔记 > 三、检查机制 > 降级阈值为什么是 2", "chunk_id": 2}]
+
+    # —— 单条匹配（容忍缩写，仍拒编造） ——
+    check("缩写到叶子的引用合法（修前被误杀 → retry 级联）",
+          _citations_legal(["第二周学习复盘#认知 2：模型不执行工具，只决定调用什么"], chunks))
+    check("完整 section 合法（回归）", _citations_legal([f"第二周学习复盘#{full}"], chunks))
+    check("叶子前缀缩写也合法（认知 2）", _citations_legal(["第二周学习复盘#认知 2"], chunks))
+    check("编造 doc 被拒（doc 未检索）", not _citations_legal(["幻觉文档#不存在的节"], chunks))
+    check("真 doc + 编造 section 被拒", not _citations_legal(["第二周学习复盘#完全不存在的小节"], chunks))
+
+    # —— 接地比例软闸门（critic 实际用的）——
+    rich = [f"第二周学习复盘#认知 2", "Agent_Loop_设计笔记#降级阈值为什么是 2",
+            "第二周学习复盘#认知 2：模型不执行工具，只决定调用什么", "幻觉文档#编造节"]  # 3 真 1 假 = 0.75
+    check("富报告多数引用接地（3 真 1 假=0.75）→ 放行",
+          _citation_grounding(rich, chunks) >= CITATION_MIN_GROUNDING)
+    check("多数编造（1 真 2 假≈0.33）→ 不放行",
+          _citation_grounding(["第二周学习复盘#认知 2", "幻觉A#x", "幻觉B#y"], chunks) < CITATION_MIN_GROUNDING)
+    check("零检索满篇引用 → 0.0 不放行", _citation_grounding(["第二周学习复盘#认知 2"], []) == 0.0)
+    check("无引用不在此闸门管（记 1.0）", _citation_grounding([], chunks) == 1.0)
+
+
+# ============================================================
 # 入口
 # ============================================================
 
 def main():
     print("=== v5.0 图结构测试（桩 planner/executor/critic，离线） ===")
-    for t in (w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11):
+    for t in (w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12):
         t()
 
     passed = sum(1 for _, ok in CHECKS if ok)
