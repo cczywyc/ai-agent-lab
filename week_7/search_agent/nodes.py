@@ -51,6 +51,7 @@ from config import (
     CITATION_MIN_GROUNDING,
     CORRECTION_MESSAGE,
     FALLBACK_MESSAGE,
+    SYNTHESIS_MESSAGE,
     RETRIEVAL_CORRECTION_MESSAGE,
     PLANNER_PROMPT,
     CRITIC_PROMPT,
@@ -528,6 +529,16 @@ def inject_fallback(state: AgentState):
         "messages": [{"role": "user", "content": FALLBACK_MESSAGE}],
         "fallback_injected": True,
         "fallback_triggered": True,
+    }
+
+
+def inject_synthesis(state: AgentState):
+    """合成提示注入（v0.5 真实跑修）：临近 turn 上限仍在检索 → 逼 executor 停手、综合产出。
+    每子任务最多一次（synthesis_forced 标志，step_init/retry_reset 会重置）。"""
+    logger.info("Injecting synthesis instruction (approaching turn limit).")
+    return {
+        "messages": [{"role": "user", "content": SYNTHESIS_MESSAGE}],
+        "synthesis_forced": True,
     }
 
 

@@ -59,6 +59,7 @@ def build_graph(checkpointer=None, store=None):
     g.add_node("inject_correction_retrieval", partial(nodes.inject_correction, kind="retrieval"))
     g.add_node("inject_correction_search", partial(nodes.inject_correction, kind="search"))
     g.add_node("inject_fallback", nodes.inject_fallback)
+    g.add_node("inject_synthesis", nodes.inject_synthesis)  # v0.5：临近 turn 上限逼综合
     g.add_node("critic", nodes.critic)                # v5.0 新增：审单步 → verdict
     g.add_node("finalize", nodes.finalize)
     g.add_node("human_review", nodes.human_review)
@@ -90,11 +91,13 @@ def build_graph(checkpointer=None, store=None):
     })
     g.add_conditional_edges("tools", after_tools, {
         "inject_fallback": "inject_fallback",
+        "inject_synthesis": "inject_synthesis",       # v0.5：临近 turn 上限逼综合
         "agent": "agent",
         "critic": "critic",                           # turn_count 闸门超限 → critic
     })
     # 所有回到 agent 的内层边都过 turn_count 闸门（超限交 critic）
-    for cycle_node in ("inject_correction_retrieval", "inject_correction_search", "inject_fallback"):
+    for cycle_node in ("inject_correction_retrieval", "inject_correction_search",
+                       "inject_fallback", "inject_synthesis"):
         g.add_conditional_edges(cycle_node, gate_to_agent, {
             "agent": "agent",
             "critic": "critic",

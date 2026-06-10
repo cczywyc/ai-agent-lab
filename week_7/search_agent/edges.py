@@ -16,7 +16,10 @@ v0.3 实现约束：读字段一律 state.get(k, 默认)（E2：TypedDict 无隐
 need_correction 的"该不该检索/搜索"按**当前子任务 query**判（executor 工作在子任务粒度）。
 """
 
-from config import MAX_TURNS, MAX_CONSECUTIVE_ERRORS, MAX_STEPS, MAX_REPLAN, MAX_RETRY
+from config import (
+    MAX_TURNS, MAX_CONSECUTIVE_ERRORS, MAX_STEPS, MAX_REPLAN, MAX_RETRY,
+    SYNTHESIS_RESERVE_TURNS,
+)
 from checks import should_have_retrieved, should_have_searched
 from state import AgentState
 
@@ -86,10 +89,14 @@ def need_correction(state: AgentState) -> str:
 
 
 def after_tools(state: AgentState) -> str:
-    """tools 之后：连续失败 ≥2 且未降级过 → inject_fallback；否则过闸门回 agent。"""
+    """tools 之后：连续失败 ≥2 且未降级过 → inject_fallback；临近 turn 上限仍在检索 →
+    inject_synthesis（逼综合，最多一次，v0.5）；否则过闸门回 agent。"""
     if (state.get("consecutive_failures", 0) >= MAX_CONSECUTIVE_ERRORS
             and not state.get("fallback_injected", False)):
         return "inject_fallback"
+    if (state.get("turn_count", 0) >= MAX_TURNS - SYNTHESIS_RESERVE_TURNS
+            and not state.get("synthesis_forced", False)):
+        return "inject_synthesis"
     return gate_to_agent(state)
 
 

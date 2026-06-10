@@ -60,6 +60,7 @@ class AgentState(TypedDict):
     consecutive_failures: int              # fetch_webpage 连续失败计数（本子任务内），成功清零
     turn_count: int                        # 单子任务 tool-use 循环上限保护（agent 节点内 +1，内层闸门查它）
     retry_count: int                       # 业务层重试计数（critic 驱动"换措辞重做该步"）；per-subtask
+    synthesis_forced: bool                 # 本子任务是否已注入"停止检索、立即综合"提示（最多一次，防过度检索撑爆 turn 预算）
     critic_verdict: str                    # 单步裁决 accept/retry/escalate（critic 写、条件边读，E5 必须声明）
     critic_feedback: str                   # critic 给 executor 的重做提示（retry 时 assemble 带进窗口）
     correction_triggered: bool             # trace 语义字段（本子任务是否触发过纠正）
@@ -80,6 +81,7 @@ PER_SUBTASK_DEFAULTS: dict = {
     "consecutive_failures": 0,
     "turn_count": 0,
     "retry_count": 0,
+    "synthesis_forced": False,
     "critic_verdict": "",
     "critic_feedback": "",
     "correction_triggered": False,

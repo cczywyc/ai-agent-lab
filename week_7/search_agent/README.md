@@ -34,6 +34,7 @@ START → init → planner ─┬─(done / step≥MAX_STEPS / replan≥MAX_REPL
 
 executor 引擎（`agent ↔ tools ↔ inject_*`，内层 `turn_count` 闸门）对外循环是黑盒：
 入口 `assemble(executor)`、出口 `critic`（v4.2 里到 finalize 的内层出口，v5.0 改接 critic）。
+内层 `inject_*` 含纠正/降级 + **`inject_synthesis`**（v0.5：临近 turn 上限仍在检索 → 逼综合，见设计要点 7）。
 
 ## 设计要点（实现层）
 
@@ -55,8 +56,11 @@ executor 引擎（`agent ↔ tools ↔ inject_*`，内层 `turn_count` 闸门）
    section 匹配也容忍缩写/后缀/叶子。store 持久化侧仍由 `extract_fact_candidates(allowed_sources)` 严格白名单兜底（S13/S14）。
 6. **escalate = skip-and-advance（v0.5 真实跑修正）**：critic escalate / retry 用尽 → planner 标记该步 skipped、推进 step_index；
    `replan_count` 计跳过数、达 `MAX_REPLAN` 放弃剩余。旧"re-plan 重做同一步"会因同一失败原因反复触发、烧光预算让后续步没机会跑。
-7. **`step_results` 不上 reducer（E3）**：节点内手动累加（按 step_id de-dup，retry 重做覆盖旧条），init 才能用 `[]` 清空。
-8. **记忆 read-side 保留**：`assemble(executor)` 记忆开启时复用 v3.0 六段装配（偏好/摘要/长期事实召回进每子任务窗口）；
+7. **synthesis-reserve 逼综合（v0.5 真实跑修正）**：宽主题子任务会把 `MAX_TURNS` 全耗在反复检索上、来不及综合 → turn 跑满空产出 → escalate。
+   `after_tools` 在 `turn_count ≥ MAX_TURNS - SYNTHESIS_RESERVE_TURNS(2)` 且还在要工具时注入 `inject_synthesis`（"停止检索、立即综合"，每子任务最多一次、`synthesis_forced` 标志），
+   逼 executor 在 turn 上限前产出结论。实跑验证：宽步（如 LangGraph 迁移）`synth=True` 后正常 accept、不再超时。
+8. **`step_results` 不上 reducer（E3）**：节点内手动累加（按 step_id de-dup，retry 重做覆盖旧条），init 才能用 `[]` 清空。
+9. **记忆 read-side 保留**：`assemble(executor)` 记忆开启时复用 v3.0 六段装配（偏好/摘要/长期事实召回进每子任务窗口）；
    write-side `update_memory` 记录整份报告（占位符报告跳过）。子任务结论写 store 靠 `plan_version` 打标（§8 承接）。
 
 ## 文件结构
@@ -65,14 +69,14 @@ executor 引擎（`agent ↔ tools ↔ inject_*`，内层 `turn_count` 闸门）
 search_agent/
 ├── state.py     # AgentState（+8 字段）+ PER_SUBTASK_DEFAULTS / PER_TASK_DEFAULTS（两层重置）+ fresh_retry_reset
 ├── nodes.py     # init / planner / step_init / retry_reset / assemble(role=executor) / agent / tools /
-│                #   inject_*×3 / critic / finalize(报告) / human_review / update_memory
+│                #   inject_correction×2 / inject_fallback / inject_synthesis / critic / finalize(报告) / human_review / update_memory
 │                #   三档模型调用：call_model(executor) / call_planner_model / call_critic_model（可桩）
 ├── edges.py     # 外循环：route_after_planner / route_after_critic（E1 两出口 {planner, retry_reset}）；
 │                #   内层：route_after_agent / need_correction / after_tools / gate_to_agent（出口改接 critic）
 ├── graph.py     # 状态图组装（planner-executor-critic 接线；step_init/retry_reset 都喂 assemble）+ compile
 ├── main.py      # CLI：交互调研 / --query / --test（批量调研）/ --ingest / 记忆模式
-├── config.py    # +MAX_STEPS/MAX_REPLAN/MAX_RETRY/CITATION_MIN_GROUNDING + PLANNER_PROMPT/CRITIC_PROMPT；ingest 含 week_7 docs
-├── test_graph.py        # v5.0 外循环离线测试（W1–W12，60 项；E1–E7 进真实图 + W11 retry_reset + W12 引用闸门）
+├── config.py    # +MAX_STEPS/MAX_REPLAN/MAX_RETRY/CITATION_MIN_GROUNDING/SYNTHESIS_RESERVE_TURNS + PLANNER/CRITIC_PROMPT；ingest 含 week_7 docs
+├── test_graph.py        # v5.0 外循环离线测试（W1–W13，64 项；+ W12 引用闸门 + W13 synthesis-reserve）
 ├── test_criteria.py     # 占位符/判据纯函数（23 项）
 ├── test_store_memory.py # Store×记忆 e2e（56 项；S9/S11/S12/S14 已适配 v5.0 外循环）
 ├── tools.py / checks.py / rag/ / memory/   # v4.2 原样复用（加调研工具只登记 TOOL_EFFECTS）
@@ -95,12 +99,14 @@ search_agent/
 
 ## 验证状态
 
-- **离线桩测全绿**：`test_graph.py` 60/60（W1–W12：happy path / 三路 critic / 两层重置 /
-  step_results 累加 / 双闸门 / 两档计数器 / 跨子任务重锚 / executor 引擎保真 / turn 闸门到 critic / 收尾链尾 /
-  W11 retry 轻量重置 / **W12 引用接地软闸门**）；`test_criteria.py` 23/23；`test_store_memory.py` 56/56。
+- **离线桩测全绿**：`test_graph.py` 64/64（W1–W13：happy path / 三路 critic / 两层重置 / step_results 累加 /
+  双闸门 / 两档计数器 / 跨子任务重锚 / executor 引擎保真 / turn 闸门到 critic / 收尾链尾 / W11 retry 轻量重置 /
+  W12 引用接地软闸门 / **W13 synthesis-reserve**）；`test_criteria.py` 23/23；`test_store_memory.py` 56/56。
 - **机制探针**：`week_7/experiment/` E1–E7，20/20（LangGraph 1.2.4）。
-- **真实 API 端到端实跑**（qwen3.7-plus，5 子任务调研问题，2026-06-09）：planner 拆解合理；critic LLM 正常裁决
-  （3 步 accept、引用 12–25 条经接地软闸门放行）；**3/5 步完成**（剩 2 步因 DashScope 免费额度耗尽 403 →
-  skip-and-advance 优雅收口出 3 段可读报告，坐实兜底）。**§四 token 预算实测**：摘要段峰值 ~1307 字符（受
-  `MAX_STEPS`×每步 400 上限约束、有界，**无需压缩**）；真正窗口压力是子任务内检索 chunk 累加（峰值 ~12.7K tokens）——
-  后续可给内层累加 tool 结果设上限/降 `RETRIEVE_TOP_K`。完整额度跑通待非免费额度复跑。
+- **真实 API 端到端实跑（5/5 全步完成，qwen3.7-plus-2026-05-26，2026-06-09）**：5 子任务调研问题，planner 拆解合理
+  （每周一步）；**5/5 步 accept**，引用 18/33/40/29/22 条经接地软闸门全放行；critic LLM 正常裁决（step 3 真发生
+  retry→accept 业务重试）；宽主题步（step 0/4，含 LangGraph 迁移）`synthesis_forced=True` 被逼综合、turn 上限前产出；
+  replan=0、`all_steps_done`、报告 ~28.7K 字符。
+- **§四 token 预算（待验证项已结）**：摘要段峰值 ~1307 字符（受 `MAX_STEPS`×每步 400 约束、有界、**无需压缩**）；
+  真正窗口压力是子任务内检索 chunk 累加（峰值 ~12–19K tokens）——已由 synthesis-reserve 逼综合控住，
+  进一步可降 `RETRIEVE_TOP_K` / 限单子任务检索次数。

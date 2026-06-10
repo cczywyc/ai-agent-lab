@@ -143,6 +143,10 @@ SYSTEM_PROMPT = """
 
 MAX_TURNS = 6              # 内层（单子任务）tool-use 上限（v4.2 原样）
 MAX_CONSECUTIVE_ERRORS = 2
+# v0.5 真实跑修：宽主题子任务会把 MAX_TURNS 全耗在反复检索上、来不及综合 → turn 跑满空产出 →
+# escalate。保留最后 SYNTHESIS_RESERVE_TURNS 轮：executor 还在要工具且 turn_count 已进入保留区
+# 时，注入"停止检索、立即综合"提示（每子任务最多一次），逼它在 turn 上限前产出结论。
+SYNTHESIS_RESERVE_TURNS = 2
 MAX_CONTEXT_CHARS = 8000  # v3.0 增大以容纳检索 chunk
 
 # ============================================================
@@ -227,6 +231,13 @@ FALLBACK_MESSAGE = (
     "请直接基于你已经获得的搜索摘要（snippets）来回答用户的问题。"
     "在回答开头注明：'以下回答基于搜索摘要，未能获取完整文章内容。'"
     "不要再尝试使用 fetch_webpage 工具。"
+)
+
+# v0.5：本子任务即将达到 turn 上限时，逼 executor 停止检索、综合产出（防过度检索撑爆 turn 预算）
+SYNTHESIS_MESSAGE = (
+    "[System Notice] 本子任务即将达到轮次上限。请**立即停止调用工具**，"
+    "基于你已经检索到的结果，现在就给出本子任务的结论（每条事实带 [doc#section] 引用）。"
+    "不要再调用 retrieve_documents / web_search / fetch_webpage 中的任何工具。"
 )
 
 # ============================================================

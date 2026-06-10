@@ -140,6 +140,22 @@ def make_execute_tool(results_by_name):
     return _exec
 
 
+class SynthRespectModel:
+    """executor 桩：一直要工具，直到窗口里出现"停止调用工具"的合成提示 → 才 stop 综合。
+    用于验 synthesis-reserve 提示能在 turn 上限前逼出综合（宽主题子任务不再空跑到超时）。"""
+
+    def __init__(self, answer="基于已检索结果的综合结论 [d#s]"):
+        self.answer = answer
+        self.calls = []
+
+    def __call__(self, oai_messages):
+        self.calls.append(list(oai_messages))
+        last = oai_messages[-1]
+        if last.get("role") == "user" and "停止调用工具" in (last.get("content") or ""):
+            return resp_stop(self.answer)
+        return resp_tools(("retrieve_documents", {"query": "x"}))
+
+
 def run(graph, query, thread_id, use_memory=False):
     cfg = {
         "configurable": {"thread_id": thread_id, "use_memory": use_memory},
@@ -500,12 +516,32 @@ def w12():
 
 
 # ============================================================
+# W13 synthesis-reserve 提示：宽主题子任务在 turn 上限前被逼出综合（真实跑暴露的过度检索）
+# ============================================================
+
+def w13():
+    print("\n[W13] synthesis-reserve：executor 一直要工具 → 临近 turn 上限注入合成提示 → turn 上限前综合产出")
+    set_stubs(
+        planner=ScriptedPlanner([plan_json("很宽的子任务")]),
+        executor=SynthRespectModel("基于已检索结果的综合结论 [d#s]"),
+        critic=ScriptedCritic(["accept"]),
+        tools=make_execute_tool({"retrieve_documents": {"results": [
+            {"doc": "d", "section": "s", "chunk_id": 1, "score": 0.9}]}}),
+    )
+    final, _ = run(build_test_graph(), "q-synth", "w13")
+    check("synthesis 提示已注入（synthesis_forced）", final["synthesis_forced"])
+    check("executor 收到提示后综合产出（未空跑到超时 escalate）", "综合结论" in final["answer"])
+    check("综合发生在 turn 上限前（turn_count < MAX_TURNS）", final["turn_count"] < MAX_TURNS)
+    check("子任务 accept 完成（非 skipped）", final["plan"][0]["status"] == "done")
+
+
+# ============================================================
 # 入口
 # ============================================================
 
 def main():
     print("=== v5.0 图结构测试（桩 planner/executor/critic，离线） ===")
-    for t in (w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12):
+    for t in (w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13):
         t()
 
     passed = sum(1 for _, ok in CHECKS if ok)
