@@ -441,12 +441,36 @@ def w10():
 
 
 # ============================================================
+# W11 业务 retry 轻量重置（retry_reset：每次 retry 是带满额 turn 预算的全新尝试）
+# ============================================================
+
+def w11():
+    print("\n[W11] 业务 retry 轻量重置：retry 全新 turn 预算 + 重置工具标志；保留 retry_count/chunks")
+    set_stubs(
+        planner=ScriptedPlanner([plan_json("子任务X")]),
+        executor=ScriptedModel([
+            resp_tools(("retrieve_documents", {"query": "x"})), resp_stop("初稿(被打回)"),  # 首次 2 turn + 检索
+            resp_stop("重做稿"),                                                            # retry：全新预算
+        ]),
+        critic=ScriptedCritic(["retry", "accept"]),
+        tools=make_execute_tool({"retrieve_documents": {"results": [
+            {"doc": "d", "section": "s", "chunk_id": 1, "score": 0.9}]}}),
+    )
+    final, _ = run(build_test_graph(), "q-retry-reset", "w11")
+    check("retry 重置 turn_count（全新满额预算 =1，而非累加到 3）", final["turn_count"] == 1)
+    check("retry 重置 has_retrieved（纠正闸恢复；首次置 True 后被打回）", final["has_retrieved"] is False)
+    check("retry 保留 retrieved_chunks（换措辞重做仍可引用首次召回）", len(final["retrieved_chunks"]) == 1)
+    check("retry 保留 retry_count（业务重试额度累计）", final["retry_count"] == 1)
+    check("最终拿到重做稿", "重做稿" in final["answer"])
+
+
+# ============================================================
 # 入口
 # ============================================================
 
 def main():
     print("=== v5.0 图结构测试（桩 planner/executor/critic，离线） ===")
-    for t in (w1, w2, w3, w4, w5, w6, w7, w8, w9, w10):
+    for t in (w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11):
         t()
 
     passed = sum(1 for _, ok in CHECKS if ok)

@@ -46,12 +46,12 @@ def route_after_planner(state: AgentState) -> str:
 
 
 def route_after_critic(state: AgentState) -> str:
-    """critic 之后：三路判定塌缩成两条物理边 {planner, assemble}（E1）。"""
+    """critic 之后：三路判定塌缩成两条物理边 {planner, retry_reset}（E1）。"""
     verdict = state.get("critic_verdict", "accept")
     if verdict == "accept":
         return "planner"                                  # 去判 done / 推进下一步
     if verdict == "retry" and state.get("retry_count", 0) < MAX_RETRY:
-        return "assemble"                                 # 回 executor 重做该步（不经 step_init）
+        return "retry_reset"                              # 轻量重置后回 executor 重做该步（全新 turn 预算）
     return "planner"                                      # escalate / retry 达上限 → escalate 通道
 
 

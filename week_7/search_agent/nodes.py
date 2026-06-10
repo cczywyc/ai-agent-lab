@@ -64,6 +64,7 @@ from state import (
     AgentState,
     fresh_subtask_defaults,
     fresh_task_defaults,
+    fresh_retry_reset,
 )
 from tools import (  # noqa: F401  (execute_tool 供测试 monkeypatch)
     TOOL_DEFINITIONS,
@@ -261,10 +262,21 @@ def step_init(state: AgentState):
     只打回 PER_SUBTASK_DEFAULTS（含 retry_count / critic_verdict / critic_feedback /
     retrieved_chunks / turn_count 等），**不碰** per-task 字段（plan / step_results /
     replan_count / plan_version）——E2/E6 坐实"每子任务清零内层、跨子任务累加外层"。
-    走在 route_after_planner → assemble 这条边上；retry 边（critic → assemble）不经此节点
-    （所以 retry 重做时 retry_count 不被清零，由 critic 累加）。
+    走在 route_after_planner → step_init → assemble 这条边上（新子任务）；retry 边走
+    critic → retry_reset → assemble（轻量重置，见 retry_reset）。
     """
     return fresh_subtask_defaults()
+
+
+def retry_reset(state: AgentState):
+    """
+    业务 retry 的轻量重置（critic → retry_reset → assemble）：把内层执行状态打回初值，
+    让每次 retry 都是带满额 turn 预算的"全新一次重做"（职责边界 §5"重做该步"）——修掉
+    "首次跑满 turn 的子任务一旦被 retry 就因预算耗尽直接 escalate、retry 档形同虚设"。
+    保留 retry_count（业务额度，critic 刚 +1）、critic_feedback（重做指导，assemble 读它）、
+    retrieved_chunks（换措辞重做仍可引用首次召回）。与 step_init 对称，区别只在这三项。
+    """
+    return fresh_retry_reset()
 
 
 # ============================================================
@@ -368,7 +380,8 @@ def assemble(state: AgentState, config, *, store: BaseStore, role: str = "execut
     子任务 tool 历史（E7）；段 6 = 本子任务局部上下文（query + 前序摘要 + retry 反馈）。
     记忆开启时复用 v3.0 六段装配（段 2 偏好 / 段 3 摘要 / 段 4 长期事实召回都进窗口）——
     跨调研任务的偏好与事实仍影响每个子任务的产出（read-side 记忆不因外循环而丢）。
-    （planner 的"看摘要"视角由 planner 节点内部 _planner_messages 处理，不走本节点。）
+    （planner 的"看摘要"视角由 planner 节点内部 _planner_messages 处理，不走本节点；
+    role 现仅 "executor" 一个活值，保留为前向扩展钩子——decision C 的 partial 先例。）
     """
     content = _executor_user_content(state)
     memory = _memory_from(config)

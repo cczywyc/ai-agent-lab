@@ -23,11 +23,11 @@ planner 推进/重试/re-plan → finalize 组装**结构化调研报告** → h
 ## 图骨架（设计草稿 §五）
 
 ```
-START → init → planner ─┬─(done / step≥MAX_STEPS / replan≥MAX_REPLAN)──────────► finalize
+START → init → planner ─┬─(done / step≥MAX_STEPS / replan≥MAX_REPLAN)─────────────► finalize
                         └─(下一子任务)─► step_init ─► assemble(executor) ─► agent ─┐
-              ┌── retry（critic→assemble，不经 step_init，retry_count 不清）───────┘
+              ┌── retry ─► retry_reset ─► assemble ──────────────────────────────┘
           critic ─┬─ accept ───────────────► planner（判 done / 推进 step_index）
-                  ├─ retry(<MAX_RETRY) ────► assemble（重做该步）
+                  ├─ retry(<MAX_RETRY) ────► retry_reset → assemble（轻量重置后重做该步）
                   └─ escalate / retry 用尽 ► planner（escalate：re-plan / 跳过）
    收口：finalize（组装报告）→ human_review（审批）→ update_memory → END
 ```
@@ -40,9 +40,11 @@ executor 引擎（`agent ↔ tools ↔ inject_*`，内层 `turn_count` 闸门）
 1. **跨子任务窗口隔离（E7）**：`messages` 全图唯一累加、`init` 不清（保留 thread 历史），跨子任务只增不减。
    "executor 只看当前子任务"靠 `assemble(role=executor)` **每子任务重产 `SYSTEM_PROMPT` 锚** +
    `nodes._window_start` 切片实现——窗口自锚到当前子任务、天然隔离前序子任务 tool 历史；不靠清空 messages。
-2. **两层重置（E2/E6）**：`PER_SUBTASK_DEFAULTS`（含 `retry_count`/`turn_count`/`has_*`/`retrieved_chunks`）
-   由 init + step_init 都打回；`PER_TASK_DEFAULTS`（`plan`/`step_results`/`replan_count`/`plan_version`）只 init 清。
-   retry 走 `critic→assemble`、**不经 step_init**，所以 retry 重做时 retry_count 由 critic 累加、不被清零。
+2. **两层重置 + retry 轻量重置（E2/E6 + 实现期定）**：`PER_SUBTASK_DEFAULTS`（含 `retry_count`/`turn_count`/`has_*`/`retrieved_chunks`）
+   由 init + `step_init`（新子任务）全量打回；`PER_TASK_DEFAULTS`（`plan`/`step_results`/`replan_count`/`plan_version`）只 init 清。
+   业务 retry 走 `critic → retry_reset → assemble`：`retry_reset` 重置 `turn_count`/`has_*`/纠正注入标志，
+   **保留** `retry_count`(critic 刚 +1)/`critic_feedback`(重做指导)/`retrieved_chunks`(换措辞重做仍可引用)——
+   每次 retry 是带满额 turn 预算的全新尝试（"重做该步"），避免首次跑满 turn 的子任务一被 retry 就因预算耗尽直接 escalate。
 3. **三档计数器分开（E5）**：`empty_retries`（传输层，agent 节点内、不进拓扑、per-task 累计）/
    `retry_count`（业务层，critic 驱动、per-subtask）/ `replan_count`（计划层，per-task）——别合成一个。
 4. **双闸门非冗余（E4）**：`step_index<MAX_STEPS`（前进步数）+ `replan_count<MAX_REPLAN`（原地绕圈）；
@@ -57,16 +59,16 @@ executor 引擎（`agent ↔ tools ↔ inject_*`，内层 `turn_count` 闸门）
 
 ```
 search_agent/
-├── state.py     # AgentState（+8 字段）+ PER_SUBTASK_DEFAULTS / PER_TASK_DEFAULTS（两层重置）
-├── nodes.py     # init / planner / step_init / assemble(role) / agent / tools / inject_*×3 /
-│                #   critic / finalize(报告) / human_review / update_memory
+├── state.py     # AgentState（+8 字段）+ PER_SUBTASK_DEFAULTS / PER_TASK_DEFAULTS（两层重置）+ fresh_retry_reset
+├── nodes.py     # init / planner / step_init / retry_reset / assemble(role=executor) / agent / tools /
+│                #   inject_*×3 / critic / finalize(报告) / human_review / update_memory
 │                #   三档模型调用：call_model(executor) / call_planner_model / call_critic_model（可桩）
-├── edges.py     # 外循环：route_after_planner / route_after_critic（E1 两出口）；
+├── edges.py     # 外循环：route_after_planner / route_after_critic（E1 两出口 {planner, retry_reset}）；
 │                #   内层：route_after_agent / need_correction / after_tools / gate_to_agent（出口改接 critic）
-├── graph.py     # 状态图组装（planner-executor-critic 接线）+ compile(checkpointer, store)
+├── graph.py     # 状态图组装（planner-executor-critic 接线；step_init/retry_reset 都喂 assemble）+ compile
 ├── main.py      # CLI：交互调研 / --query / --test（批量调研）/ --ingest / 记忆模式
 ├── config.py    # +MAX_STEPS/MAX_REPLAN/MAX_RETRY + PLANNER_PROMPT/CRITIC_PROMPT；ingest 含 week_7 docs
-├── test_graph.py        # v5.0 外循环离线测试（W1–W10，44 项；E1–E7 进真实图复跑）
+├── test_graph.py        # v5.0 外循环离线测试（W1–W11，49 项；E1–E7 进真实图复跑 + W11 验 retry_reset）
 ├── test_criteria.py     # 占位符/判据纯函数（23 项）
 ├── test_store_memory.py # Store×记忆 e2e（56 项；S9/S11/S12/S14 已适配 v5.0 外循环）
 ├── tools.py / checks.py / rag/ / memory/   # v4.2 原样复用（加调研工具只登记 TOOL_EFFECTS）
@@ -89,9 +91,9 @@ search_agent/
 
 ## 验证状态
 
-- **离线桩测全绿**：`test_graph.py` 44/44（W1–W10：happy path / 三路 critic / 两层重置 /
-  step_results 累加 / 双闸门 / 两档计数器 / 跨子任务重锚 / executor 引擎保真 / turn 闸门到 critic / 收尾链尾）；
-  `test_criteria.py` 23/23；`test_store_memory.py` 56/56。
+- **离线桩测全绿**：`test_graph.py` 49/49（W1–W11：happy path / 三路 critic / 两层重置 /
+  step_results 累加 / 双闸门 / 两档计数器 / 跨子任务重锚 / executor 引擎保真 / turn 闸门到 critic / 收尾链尾 /
+  **W11 retry 轻量重置**）；`test_criteria.py` 23/23；`test_store_memory.py` 56/56。
 - **机制探针**：`week_7/experiment/` E1–E7，20/20（LangGraph 1.2.4）。
 - **真实 API 实测**（`--test` / `--query`）：周四实现期实跑项，需 `DASHSCOPE_API_KEY`；token 预算压缩
   （plan 长时摘要裁剪）也留作真实 API 下的实测项（设计草稿 §四）。

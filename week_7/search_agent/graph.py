@@ -50,7 +50,8 @@ def build_graph(checkpointer=None, store=None):
     # ===== 节点（干活/改 state）=====
     g.add_node("init", nodes.init)
     g.add_node("planner", nodes.planner)              # v5.0 新增：拆解 / 推进 / re-plan
-    g.add_node("step_init", nodes.step_init)          # v5.0 新增：per-subtask 重置（设计 ①）
+    g.add_node("step_init", nodes.step_init)          # v5.0 新增：新子任务 per-subtask 全量重置（设计 ①）
+    g.add_node("retry_reset", nodes.retry_reset)      # v5.0 新增：业务 retry 轻量重置（与 step_init 对称）
     # 经由模块属性引用，保证测试 monkeypatch nodes.call_*_model / execute_tool 生效
     g.add_node("assemble", partial(nodes.assemble, role="executor"))  # 决策 C：按 role 参数化
     g.add_node("agent", nodes.agent)
@@ -66,7 +67,8 @@ def build_graph(checkpointer=None, store=None):
     # ===== 顺序边 =====
     g.add_edge(START, "init")
     g.add_edge("init", "planner")
-    g.add_edge("step_init", "assemble")               # per-subtask 重置后开始装配
+    g.add_edge("step_init", "assemble")               # 新子任务全量重置后开始装配
+    g.add_edge("retry_reset", "assemble")             # 业务 retry 轻量重置后重做该步
     g.add_edge("assemble", "agent")
     # 收尾三连（v4.2 反转）：终稿报告 → 审批 → 记忆
     g.add_edge("finalize", "human_review")
@@ -97,10 +99,10 @@ def build_graph(checkpointer=None, store=None):
             "agent": "agent",
             "critic": "critic",
         })
-    # critic 后：三路判定塌缩成两条物理边 {planner, assemble}（E1）
+    # critic 后：三路判定塌缩成两条物理边 {planner, retry_reset}（E1）
     g.add_conditional_edges("critic", route_after_critic, {
         "planner": "planner",
-        "assemble": "assemble",                       # retry：回 executor 重做该步（不经 step_init）
+        "retry_reset": "retry_reset",                 # retry：轻量重置后回 executor 重做该步
     })
 
     return g.compile(

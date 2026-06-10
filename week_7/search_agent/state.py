@@ -115,3 +115,17 @@ def fresh_task_defaults() -> dict:
     d["plan"] = []
     d["step_results"] = []
     return d
+
+
+# 业务 retry（critic → retry_reset → assemble）的轻量重置：把内层执行状态打回初值，
+# 让每次 retry 都是带满额 turn 预算的"全新一次重做"（"重做该步"语义，职责边界 §5）；
+# 但保留三项：retry_count（业务重试额度，critic 刚 +1）、critic_feedback（本次重做指导，
+# assemble 要读进窗口）、retrieved_chunks（让"换措辞重做"仍能引用首次已检索来源）。
+# = PER_SUBTASK_DEFAULTS - {retry_count, critic_feedback, retrieved_chunks}
+# 与 step_init（新子任务全量重置 PER_SUBTASK_DEFAULTS）对称，区别只在这三项的保留。
+_RETRY_RESET_KEEP = {"retry_count", "critic_feedback", "retrieved_chunks"}
+
+
+def fresh_retry_reset() -> dict:
+    """retry 轻量重置字段（保留 retry_count / critic_feedback / retrieved_chunks）。"""
+    return {k: v for k, v in PER_SUBTASK_DEFAULTS.items() if k not in _RETRY_RESET_KEEP}
