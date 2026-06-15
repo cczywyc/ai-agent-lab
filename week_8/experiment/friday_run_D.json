@@ -1,0 +1,104 @@
+{
+  "topic": "D",
+  "path": "强制 skip-and-advance（含杜撰模块必查不到）",
+  "query": "写一篇技术对比：我们项目第六周的 LangGraph 控制流设计，与我们项目里『量子化状态检查点压缩器（QSCC）』模块的设计取舍。",
+  "why": "Topic B 的 week_8 子任务被相邻 week_7 内容救活、没 skip 成；QSCC 是杜撰模块、本地与联网都查不到 → 该子任务必 escalate→skip；week_6 部分给 ok findings → 验replan_count 正交计数 + ok_findings>0 时 writer 仍能写（防御式部分收口）。",
+  "model": "qwen3.7-plus-2026-05-26",
+  "duration_s": 372.2,
+  "plan": [
+    {
+      "id": 0,
+      "query": "调研并总结项目第六周 LangGraph 控制流设计的具体架构，包括节点编排、状态流转机制、条件路由以及其在处理复杂工作流时的核心特性。",
+      "status": "done"
+    },
+    {
+      "id": 1,
+      "query": "调研并总结项目中『量子化状态检查点压缩器（QSCC）』模块的设计原理，包括其量化策略、检查点压缩与恢复机制、以及对状态存储和读取性能的影响。",
+      "status": "skipped"
+    },
+    {
+      "id": 2,
+      "query": "基于前两项研究，对比分析 LangGraph 控制流设计与 QSCC 模块在设计目标、状态管理方式、性能开销及一致性保证等方面的设计取舍，并总结两者在项目中的协同作用或适用场景边界。",
+      "status": "skipped"
+    }
+  ],
+  "n_subtasks": 3,
+  "n_findings": 3,
+  "n_ok_findings": 1,
+  "n_skipped_findings": 2,
+  "finding_point_lens": [
+    1500
+  ],
+  "finding_truncated_600": 1,
+  "has_draft": true,
+  "draft_len": 2161,
+  "review_verdict": "accept",
+  "review_count": 0,
+  "replan_count": 2,
+  "best_score": 0.95,
+  "termination_reason": "review_accept（reviewer 早退）",
+  "closure": "accept（早退）",
+  "review_trace": [
+    {
+      "round": 1,
+      "verdict": "accept",
+      "score": 0.95,
+      "parse_ok": true,
+      "notes_len": 288,
+      "raw_head": "VERDICT: accept\nSCORE: 0.95\nNOTES: 1. 引用是否齐全：是。关键论断（如架构重构对比、节点职责划分、状态字段Reducer机制等）均配有准确的 [doc#section] 引用，覆盖全面。2. 是否有未接地论断：否。所有关于“解决早期版本问题”、“提升可读性与调试效率”等结论性描述，均在前文的节点设计和状态管理细节中有具体依据支撑，无凭空断言。3. 结构是否完整：是。具备清晰的引言点题、三个核心维度的分点展开（整体架构、节点编排、状态流转）以"
+    }
+  ],
+  "review_rounds": 1,
+  "review_parse_ok": 1,
+  "review_parse_total": 1,
+  "isolation_visible": {
+    "researcher": [
+      "boundary",
+      "subtask_query"
+    ],
+    "writer": [
+      "findings",
+      "outline",
+      "review_notes"
+    ],
+    "reviewer": [
+      "draft",
+      "rubric"
+    ]
+  },
+  "isolation_clean": true,
+  "tokens_by_role": {
+    "supervisor": {
+      "calls": 1,
+      "prompt": 318,
+      "completion": 1482,
+      "total": 1800
+    },
+    "researcher": {
+      "calls": 13,
+      "prompt": 195776,
+      "completion": 7052,
+      "total": 202828
+    },
+    "critic": {
+      "calls": 3,
+      "prompt": 12939,
+      "completion": 2334,
+      "total": 15273
+    },
+    "writer": {
+      "calls": 1,
+      "prompt": 1355,
+      "completion": 4063,
+      "total": 5418
+    },
+    "reviewer": {
+      "calls": 1,
+      "prompt": 1515,
+      "completion": 1636,
+      "total": 3151
+    }
+  },
+  "tokens_total": 228470,
+  "answer_len": 2854
+}

@@ -65,6 +65,7 @@ from config import (
     REVIEWER_PROMPT,
     REVIEW_RUBRIC,
     MAX_REVIEW,
+    FINDING_MAX_CHARS,
     RETRY_FEEDBACK_PREFIX,
     PLACEHOLDER_MAX_TURNS,
     PLACEHOLDER_ERROR,
@@ -256,11 +257,20 @@ _CITATION_RE = re.compile(r"\[([^\[\]#]+)#([^\[\]]+)\]")
 
 
 def _extract_citations(text: str) -> list[str]:
-    """抽出 [doc#section] / [doc#section#chunk_id] 引用，归一成 'doc#section'。"""
+    """抽出 [doc#section] / [doc#section#chunk_id] 引用，归一成 'doc#section'。
+
+    v6.0 周五真实跑修：丢弃**字面模板占位** `[doc#section]`（doc=='doc' 且 section=='section'）——
+    SYSTEM_PROMPT/WRITER_PROMPT 拿 `[doc#section]` 当格式范例，模型常把范例**原样抄进正文**，
+    A/B/C 三题交付的引用汇总里都混进了这条 `doc#section` 噪声。它既不是真来源、也不是"引错的真
+    doc 名"（真编造来源仍是真实 doc 名、照旧被接地软闸门按比例抓），纯属 prompt 回声噪声 → 直接剔除，
+    不污染 findings 引用 / 交付汇总 / 接地分母。"""
     out = []
     for doc, rest in _CITATION_RE.findall(text or ""):
         section = rest.split("#")[0]
-        out.append(f"{doc.strip()}#{section.strip()}")
+        doc, section = doc.strip(), section.strip()
+        if doc == "doc" and section == "section":
+            continue                          # 字面模板占位，prompt 回声噪声，丢弃
+        out.append(f"{doc}#{section}")
     return out
 
 
@@ -438,7 +448,7 @@ def _make_finding(state: AgentState, status: str) -> dict:
     subtask = _current_subtask(state)
     sr = next((r for r in state.get("step_results", []) if r.get("step_id") == k), None)
     if status == "ok" and sr:
-        point = (sr.get("text", "") or "").strip()[:600]
+        point = (sr.get("text", "") or "").strip()[:FINDING_MAX_CHARS]
         cites = list(sr.get("citations", []) or [])
     else:
         point, cites = "（本研究子任务未能产出有依据的结论，已跳过）", []

@@ -29,7 +29,8 @@ client = OpenAI(
 )
 
 # 主对话模型
-MODEL = "qwen3.7-plus-2026-05-26"
+# 第八周周五：旧 qwen3.7-plus-2026-05-26 额度耗尽，切新模型（用于 v5.0↔v6.0 同题纵向对比）。
+MODEL = "qwen3.7-max-2026-05-17"
 
 # Embedding 模型（DashScope 通过 OpenAI 兼容接口提供）
 EMBEDDING_MODEL = "text-embedding-v3"

@@ -37,7 +37,8 @@ client = OpenAI(
 )
 
 # 主对话模型
-MODEL = "qwen3.7-plus-2026-05-26"
+# 第八周周五真实跑：旧 qwen3.7-plus-2026-05-26 免费额度耗尽，切换至 qwen3.7-max-2026-05-17。
+MODEL = "qwen3.7-max-2026-05-17"
 
 # Embedding 模型（DashScope 通过 OpenAI 兼容接口提供）
 EMBEDDING_MODEL = "text-embedding-v3"
@@ -180,6 +181,14 @@ MAX_RETRY = 2
 # route_after_reviewer 读 review_count>=MAX_REVIEW 收口 → 恒 reject 停在 review_count==2。
 # 若周末真实跑发现 2 次会切掉"还在变好的稿"，再升到 3（第七周式"真实跑暴露再调"）。
 MAX_REVIEW = 2
+
+# v6.0 周五真实跑修：researcher 回传的 finding.point 截断上限（_make_finding）。
+# 旧值 600 在真实跑里**对 12/12 条 finding 全部触顶**（A/B/C 三题每条都被砍到 600）——
+# writer 只看 findings 投影、看不到研究全轨迹（隔离的代价），600 砍得太狠会饿着 writer、
+# 丢项目特定细节（C 题成稿偏教科书通用、缺版本号级细节即此征兆）。放宽到 1500：单条结论
+# 留足信息量，又不至于把整段检索轨迹倒给 writer（仍是"压缩回传摘要"而非全轨迹，§四）。
+# 5 条 finding × 1500 ≈ 7.5K，writer 无检索 chunk 负担、窗口装得下。
+FINDING_MAX_CHARS = 1500
 
 # critic 引用"接地下限"（v0.5 实测调整）：单步引用里能溯源到本步真实召回的比例 ≥ 此值才放行
 # 进 LLM 质量裁决；低于此值判 retry。不再要求"全部引用精确命中"——真实跑暴露：模型写富报告

@@ -1,0 +1,125 @@
+{
+  "topic": "C",
+  "path": "纵向对比 v5.0↔v6.0（5 子任务长链）",
+  "query": "写一篇技术综述：我们项目从第二周到第六周，Agent 是怎么一步步演进的？（工具调用 → Agent Loop → RAG → 记忆系统 → LangGraph 控制流）",
+  "why": "weeks 2–6 全可检索、5 子任务长链；与 v5.0 同题对比'降一层复用'的成稿差异。",
+  "duration_s": 319.1,
+  "plan": [
+    {
+      "id": 0,
+      "query": "Agent 工具调用（Tool Calling）的基础实现原理是什么，在早期项目实践中存在哪些局限性促使系统进一步演进？",
+      "status": "done"
+    },
+    {
+      "id": 1,
+      "query": "如何从单次工具调用演进到 Agent Loop（智能体循环），其核心机制（如思考-行动-观察循环）和状态流转是如何设计的？",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "query": "在 Agent 系统中集成 RAG（检索增强生成）的架构方案是什么，如何解决知识检索与 Agent 推理过程中的上下文融合问题？",
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "query": "Agent 记忆系统（包含短期与长期记忆）的设计与实现机制是什么，它是如何解决多轮交互中的信息遗忘和状态持久化问题的？",
+      "status": "done"
+    },
+    {
+      "id": 4,
+      "query": "引入 LangGraph 进行控制流管理的核心优势与实现原理是什么，它是如何通过图结构解决复杂 Agent 工作流编排与动态路由问题的？",
+      "status": "done"
+    }
+  ],
+  "n_subtasks": 5,
+  "n_findings": 5,
+  "n_ok_findings": 5,
+  "n_skipped_findings": 0,
+  "finding_point_lens": [
+    600,
+    600,
+    600,
+    600,
+    600
+  ],
+  "finding_truncated_600": 5,
+  "has_draft": true,
+  "draft_len": 2037,
+  "review_verdict": "accept",
+  "review_count": 1,
+  "replan_count": 0,
+  "best_score": 0.95,
+  "termination_reason": "review_accept（reviewer 早退）",
+  "closure": "accept（早退）",
+  "review_trace": [
+    {
+      "round": 1,
+      "verdict": "reject",
+      "score": 0.65,
+      "parse_ok": true,
+      "notes_len": 399,
+      "raw_head": "VERDICT: reject\nSCORE: 0.65\nNOTES: 1. 引用是否齐全：否。虽然关键论断后均有引用标记，但存在严重的“引用堆砌”问题（如第三、四部分单句后堆砌 10+ 个引用），未做到论断与引用的精准映射，失去了引用的溯源意义；且部分引用格式不规范（如包含 `>` 层级符号）。需打回精简，每处仅保留最核心的 1-2 个精准引用。\n2. 是否有未接地论断：是。存在不严谨的绝对化断言，如“所有 Agent 的核心骨架均由一个 while 循环...构成”，忽略了"
+    },
+    {
+      "round": 2,
+      "verdict": "accept",
+      "score": 0.95,
+      "parse_ok": true,
+      "notes_len": 266,
+      "raw_head": "VERDICT: accept\nSCORE: 0.95\nNOTES: 1. 引用是否齐全：是。正文所有关键论断均严格附带 [doc#section] 格式的引用，溯源清晰。2. 是否有未接地论断：是（即无未接地论断）。所有技术断言（如 API 差异、RAG 范式演变、记忆分层等）均有对应笔记支撑，无凭空捏造。3. 结构是否完整：是。具备标准的“引言点题-五大维度分点展开-结论收口”结构，逻辑闭环良好。4. 是否扣题：是。精准覆盖了从 Tool Calling 到 LangGr"
+    }
+  ],
+  "review_rounds": 2,
+  "review_parse_ok": 2,
+  "review_parse_total": 2,
+  "isolation_visible": {
+    "researcher": [
+      "boundary",
+      "subtask_query"
+    ],
+    "writer": [
+      "findings",
+      "outline",
+      "review_notes"
+    ],
+    "reviewer": [
+      "draft",
+      "rubric"
+    ]
+  },
+  "isolation_clean": true,
+  "tokens_by_role": {
+    "supervisor": {
+      "calls": 1,
+      "prompt": 321,
+      "completion": 1046,
+      "total": 1367
+    },
+    "researcher": {
+      "calls": 24,
+      "prompt": 216097,
+      "completion": 18705,
+      "total": 234802
+    },
+    "critic": {
+      "calls": 6,
+      "prompt": 23534,
+      "completion": 6784,
+      "total": 30318
+    },
+    "writer": {
+      "calls": 2,
+      "prompt": 7779,
+      "completion": 10102,
+      "total": 17881
+    },
+    "reviewer": {
+      "calls": 2,
+      "prompt": 3913,
+      "completion": 4560,
+      "total": 8473
+    }
+  },
+  "tokens_total": 292841,
+  "answer_len": 4406
+}
