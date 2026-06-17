@@ -28,5 +28,9 @@ readability-lxml==0.8.4.1            # fetch_webpage 正文提取（缺失时有
 # —— RAG 向量库 ——
 numpy==2.4.6
 
+# —— MCP（week_9 v7.0：包一层暴露工具 + client 经 stdio 调用）——
+mcp==1.28.0                          # 官方 Python SDK（FastMCP server + stdio ClientSession）
+jsonschema==4.26.0                   # client 侧 inputSchema 校验（决策 E：host 派发前重建协议层分流）
+
 # —— 测试 ——
 pytest==9.1.0                        # week_9 桩测套件 test_e1..e6（week_8 用 plain 脚本，无需）
