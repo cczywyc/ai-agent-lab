@@ -27,3 +27,6 @@ readability-lxml==0.8.4.1            # fetch_webpage 正文提取（缺失时有
 
 # —— RAG 向量库 ——
 numpy==2.4.6
+
+# —— 测试 ——
+pytest==9.1.0                        # week_9 桩测套件 test_e1..e6（week_8 用 plain 脚本，无需）
